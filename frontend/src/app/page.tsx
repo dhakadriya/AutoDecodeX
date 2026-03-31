@@ -1,13 +1,14 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Cpu, Github, Zap, RotateCcw } from "lucide-react";
+import { Cpu, Github, Zap, RotateCcw, Eye } from "lucide-react";
 
 import CyberInput from "@/components/CyberInput";
 import SettingsPanel from "@/components/SettingsPanel";
 import DetectionBadges from "@/components/DetectionBadges";
 import DecodingPipeline from "@/components/DecodingPipeline";
 import TerminalOutput from "@/components/TerminalOutput";
+import StegoAnalyzer from "@/components/stego/StegoAnalyzer";
 
 import {
   decodeText, detectText, bruteForce,
@@ -19,6 +20,8 @@ interface Settings {
   bruteForce: "none" | "caesar" | "xor";
 }
 
+type AppTab = "decode" | "stego";
+
 export default function Home() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -27,53 +30,36 @@ export default function Home() {
   const [bruteForceResult, setBruteForceResult] = useState<BruteForceResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [settings, setSettings] = useState<Settings>({ ctfMode: false, bruteForce: "none" });
+  const [appTab, setAppTab] = useState<AppTab>("decode");
 
-  // Live detection as user types (debounced)
   useEffect(() => {
-    if (!input.trim() || input.length < 4) {
-      setDetections([]);
-      return;
-    }
+    if (!input.trim() || input.length < 4) { setDetections([]); return; }
     const timer = setTimeout(async () => {
-      try {
-        const res = await detectText(input);
-        setDetections(res.detections);
-      } catch {
-        // silent fail for live detection
-      }
+      try { const res = await detectText(input); setDetections(res.detections); } catch { /* silent */ }
     }, 400);
     return () => clearTimeout(timer);
   }, [input]);
 
   const handleDecode = useCallback(async () => {
     if (!input.trim()) return;
-    setLoading(true);
-    setError(null);
-    setResult(null);
-    setBruteForceResult(null);
-
+    setLoading(true); setError(null); setResult(null); setBruteForceResult(null);
     try {
-      // Run brute force if enabled
       if (settings.bruteForce !== "none") {
         const bf = await bruteForce(input, settings.bruteForce);
         setBruteForceResult(bf);
       }
-
       const res = await decodeText(input, settings.ctfMode);
       setResult(res);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to connect to backend. Is the server running?");
+      setError(e instanceof Error ? e.message : "Failed to connect to backend.");
     } finally {
       setLoading(false);
     }
   }, [input, settings]);
 
   const handleReset = () => {
-    setInput("");
-    setResult(null);
-    setDetections([]);
-    setBruteForceResult(null);
-    setError(null);
+    setInput(""); setResult(null); setDetections([]);
+    setBruteForceResult(null); setError(null);
   };
 
   return (
@@ -95,10 +81,9 @@ export default function Home() {
             </motion.div>
             <div>
               <h1 className="text-lg font-bold font-mono neon-blue tracking-wider">AutoDecodeX</h1>
-              <p className="text-xs text-cyber-muted">AI-Assisted Encoding Decoder</p>
+              <p className="text-xs text-cyber-muted">AI-Assisted Encoding Decoder + Stego Lab</p>
             </div>
           </div>
-
           <div className="flex items-center gap-4">
             {settings.ctfMode && (
               <motion.div
@@ -110,153 +95,144 @@ export default function Home() {
                 <span className="text-xs text-cyber-green font-mono">CTF MODE</span>
               </motion.div>
             )}
-            <a
-              href="https://github.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-cyber-muted hover:text-cyber-text transition-colors"
-            >
+            <a href="https://github.com" target="_blank" rel="noopener noreferrer"
+              className="text-cyber-muted hover:text-cyber-text transition-colors">
               <Github size={18} />
             </a>
           </div>
         </div>
       </motion.header>
 
-      {/* Main content */}
+      {/* Main */}
       <main className="flex-1 max-w-7xl mx-auto w-full px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
 
-          {/* Left column */}
-          <div className="space-y-6">
-            {/* Hero text */}
+        {/* Tab switcher */}
+        <div className="flex gap-2 mb-8">
+          <button
+            onClick={() => setAppTab("decode")}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg border text-sm font-mono font-semibold transition-all
+              ${appTab === "decode"
+                ? "border-cyber-blue text-cyber-blue bg-cyber-blue/10"
+                : "border-cyber-border text-cyber-muted hover:border-cyber-muted"}`}
+          >
+            <Zap size={14} />
+            Decoder
+          </button>
+          <button
+            onClick={() => setAppTab("stego")}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg border text-sm font-mono font-semibold transition-all
+              ${appTab === "stego"
+                ? "border-cyber-purple text-cyber-purple bg-cyber-purple/10"
+                : "border-cyber-border text-cyber-muted hover:border-cyber-muted"}`}
+          >
+            <Eye size={14} />
+            Stego Analyzer
+          </button>
+        </div>
+
+        <AnimatePresence mode="wait">
+          {appTab === "decode" ? (
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.2 }}
-              className="space-y-1"
+              key="decode"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6"
             >
-              <h2 className="text-2xl font-bold font-mono text-cyber-text">
-                Decode <span className="neon-green">anything</span>.
-              </h2>
-              <p className="text-sm text-cyber-muted">
-                Multi-layer encoding detection with step-by-step explainability.
-              </p>
-            </motion.div>
-
-            {/* Input */}
-            <CyberInput
-              value={input}
-              onChange={setInput}
-              onDecode={handleDecode}
-              loading={loading}
-            />
-
-            {/* Reset */}
-            {(result || bruteForceResult) && (
-              <motion.button
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                onClick={handleReset}
-                className="flex items-center gap-2 text-xs text-cyber-muted hover:text-cyber-text transition-colors font-mono"
-              >
-                <RotateCcw size={12} />
-                Reset
-              </motion.button>
-            )}
-
-            {/* Error */}
-            <AnimatePresence>
-              {error && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  className="p-4 rounded-lg border border-red-500/40 bg-red-500/10 text-red-400 text-sm font-mono"
-                >
-                  ⚠ {error}
+              {/* Left column */}
+              <div className="space-y-6">
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="space-y-1">
+                  <h2 className="text-2xl font-bold font-mono text-cyber-text">
+                    Decode <span className="neon-green">anything</span>.
+                  </h2>
+                  <p className="text-sm text-cyber-muted">Multi-layer encoding detection with step-by-step explainability.</p>
                 </motion.div>
-              )}
-            </AnimatePresence>
 
-            {/* Live detections */}
-            <AnimatePresence>
-              {detections.length > 0 && !loading && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                >
-                  <DetectionBadges detections={detections} />
+                <CyberInput value={input} onChange={setInput} onDecode={handleDecode} loading={loading} />
+
+                {(result || bruteForceResult) && (
+                  <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={handleReset}
+                    className="flex items-center gap-2 text-xs text-cyber-muted hover:text-cyber-text transition-colors font-mono">
+                    <RotateCcw size={12} /> Reset
+                  </motion.button>
+                )}
+
+                <AnimatePresence>
+                  {error && (
+                    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                      className="p-4 rounded-lg border border-red-500/40 bg-red-500/10 text-red-400 text-sm font-mono">
+                      ⚠ {error}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <AnimatePresence>
+                  {detections.length > 0 && !loading && (
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+                      <DetectionBadges detections={detections} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <AnimatePresence>
+                  {(loading || (result && result.steps.length > 0)) && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                      className="bg-cyber-surface border border-cyber-border rounded-xl p-5">
+                      <DecodingPipeline steps={result?.steps ?? []} loading={loading} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <TerminalOutput result={result} bruteForceResult={bruteForceResult} />
+              </div>
+
+              {/* Right column */}
+              <div className="space-y-4">
+                <SettingsPanel settings={settings} onChange={setSettings} />
+
+                <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
+                  className="bg-cyber-surface border border-cyber-border rounded-xl p-4">
+                  <p className="text-xs text-cyber-muted uppercase tracking-widest mb-3">Quick Examples</p>
+                  <div className="space-y-2">
+                    {EXAMPLES.map((ex) => (
+                      <button key={ex.label}
+                        onClick={() => { setInput(ex.value); setResult(null); setBruteForceResult(null); }}
+                        className="w-full text-left p-2.5 rounded-lg border border-cyber-border bg-cyber-card
+                          hover:border-cyber-blue/50 hover:bg-cyber-blue/5 transition-all duration-150 group">
+                        <p className="text-xs text-cyber-blue font-mono group-hover:neon-blue">{ex.label}</p>
+                        <p className="text-xs text-cyber-muted truncate mt-0.5">{ex.value}</p>
+                      </button>
+                    ))}
+                  </div>
                 </motion.div>
-              )}
-            </AnimatePresence>
 
-            {/* Pipeline */}
-            <AnimatePresence>
-              {(loading || (result && result.steps.length > 0)) && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="bg-cyber-surface border border-cyber-border rounded-xl p-5"
-                >
-                  <DecodingPipeline steps={result?.steps ?? []} loading={loading} />
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Output */}
-            <TerminalOutput result={result} bruteForceResult={bruteForceResult} />
-          </div>
-
-          {/* Right column */}
-          <div className="space-y-4">
-            <SettingsPanel settings={settings} onChange={setSettings} />
-
-            {/* Quick examples */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 }}
-              className="bg-cyber-surface border border-cyber-border rounded-xl p-4"
-            >
-              <p className="text-xs text-cyber-muted uppercase tracking-widest mb-3">Quick Examples</p>
-              <div className="space-y-2">
-                {EXAMPLES.map((ex) => (
-                  <button
-                    key={ex.label}
-                    onClick={() => { setInput(ex.value); setResult(null); setBruteForceResult(null); }}
-                    className="w-full text-left p-2.5 rounded-lg border border-cyber-border bg-cyber-card
-                      hover:border-cyber-blue/50 hover:bg-cyber-blue/5 transition-all duration-150 group"
-                  >
-                    <p className="text-xs text-cyber-blue font-mono group-hover:neon-blue">{ex.label}</p>
-                    <p className="text-xs text-cyber-muted truncate mt-0.5">{ex.value}</p>
-                  </button>
-                ))}
+                {result && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                    className="bg-cyber-surface border border-cyber-border rounded-xl p-4 space-y-3">
+                    <p className="text-xs text-cyber-muted uppercase tracking-widest">Analysis Stats</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Stat label="Layers" value={result.steps.length.toString()} color="text-cyber-blue" />
+                      <Stat label="Score" value={`${Math.round(result.total_score * 100)}%`} color="text-cyber-green" />
+                      <Stat label="Flag" value={result.is_ctf_flag ? "YES" : "NO"} color={result.is_ctf_flag ? "text-cyber-green" : "text-cyber-muted"} />
+                      <Stat label="Status" value={result.success ? "OK" : "PARTIAL"} color={result.success ? "text-cyber-green" : "text-amber-400"} />
+                    </div>
+                  </motion.div>
+                )}
               </div>
             </motion.div>
-
-            {/* Stats */}
-            {result && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="bg-cyber-surface border border-cyber-border rounded-xl p-4 space-y-3"
-              >
-                <p className="text-xs text-cyber-muted uppercase tracking-widest">Analysis Stats</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <Stat label="Layers" value={result.steps.length.toString()} color="text-cyber-blue" />
-                  <Stat label="Score" value={`${Math.round(result.total_score * 100)}%`} color="text-cyber-green" />
-                  <Stat label="Flag" value={result.is_ctf_flag ? "YES" : "NO"} color={result.is_ctf_flag ? "text-cyber-green" : "text-cyber-muted"} />
-                  <Stat label="Status" value={result.success ? "OK" : "PARTIAL"} color={result.success ? "text-cyber-green" : "text-amber-400"} />
-                </div>
-              </motion.div>
-            )}
-          </div>
-        </div>
+          ) : (
+            <motion.div
+              key="stego"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+            >
+              <StegoAnalyzer />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
 
-      {/* Footer */}
       <footer className="border-t border-cyber-border py-4 text-center">
         <p className="text-xs text-cyber-muted font-mono">
           AutoDecodeX v1.0.0 — Built for CTF players &amp; cybersecurity students

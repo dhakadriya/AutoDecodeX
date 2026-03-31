@@ -4,6 +4,7 @@ AutoDecodeX FastAPI application entry point.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.api.routes import router
+from backend.stego.routes import stego_router
 
 app = FastAPI(
     title="AutoDecodeX",
@@ -20,6 +21,7 @@ app.add_middleware(
 )
 
 app.include_router(router)
+app.include_router(stego_router)
 
 
 @app.get("/")

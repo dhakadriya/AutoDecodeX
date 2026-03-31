@@ -69,3 +69,128 @@ export async function bruteForce(input: string, mode: "caesar" | "xor"): Promise
   if (!res.ok) throw new Error(`API error: ${res.status}`);
   return res.json();
 }
+
+// ── Stego API ──────────────────────────────────────────────────────────────
+
+export interface StegoLSBResult {
+  raw_bytes_hex: string;
+  ascii_text: string;
+  possible_b64: string[];
+  bits_used: number;
+  channels: string;
+  total_bits_extracted: number;
+}
+
+export interface StegoEntropy {
+  global_entropy: number;
+  channel_entropy: { R: number; G: number; B: number };
+  lsb_entropy: { R: number; G: number; B: number };
+  stego_likelihood: number;
+  chi_square_score: number;
+  suspicious: boolean;
+}
+
+export interface StegoDecodeResult {
+  success?: boolean;
+  final_output: string;
+  total_score: number;
+  path_description: string;
+  is_ctf_flag: boolean;
+  steps?: Array<{
+    step_number: number;
+    encoding_type: string;
+    confidence: number;
+    output_text: string;
+    score: number;
+  }>;
+  error?: string;
+}
+
+export interface StegoAnalyzeResponse {
+  filename: string;
+  lsb: StegoLSBResult;
+  entropy: StegoEntropy;
+  auto_decode: StegoDecodeResult | null;
+}
+
+export interface StegoBruteResult {
+  bits: number;
+  channels: string;
+  ascii_text: string;
+  possible_b64: string[];
+  raw_bytes_hex: string;
+  score: number;
+  decode_result?: {
+    final_output: string;
+    path_description: string;
+    is_ctf_flag: boolean;
+    total_score: number;
+  };
+}
+
+export interface TextStegoResponse {
+  zero_width: {
+    found: boolean;
+    bit_count?: number;
+    bits?: string;
+    decoded: string;
+    auto_decode?: { final_output: string; is_ctf_flag: boolean };
+  };
+  whitespace: { found: boolean; bit_count?: number; decoded: string };
+  first_letters: { first_letter_each_line: string; first_letter_each_word: string };
+  unicode_hidden: Array<{ position: number; char: string; codepoint: string }>;
+  invisible_chars_found: number;
+}
+
+export async function stegoAnalyze(
+  file: File,
+  bits = 1,
+  channels = "RGB",
+  password = "",
+  autoDecode = true,
+): Promise<StegoAnalyzeResponse> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("bits", String(bits));
+  form.append("channels", channels);
+  if (password) form.append("password", password);
+  form.append("auto_decode_flag", String(autoDecode));
+  const res = await fetch(`${BASE}/stego/analyze`, { method: "POST", body: form });
+  if (!res.ok) throw new Error(`Stego API error: ${res.status}`);
+  return res.json();
+}
+
+export async function stegoBruteForce(file: File, autoDecode = true): Promise<{ results: StegoBruteResult[] }> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("auto_decode_flag", String(autoDecode));
+  const res = await fetch(`${BASE}/stego/brute-force`, { method: "POST", body: form });
+  if (!res.ok) throw new Error(`Stego brute-force error: ${res.status}`);
+  return res.json();
+}
+
+export async function stegoBitPlanes(file: File): Promise<{ planes: Record<string, Record<string, string>> }> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${BASE}/stego/bit-planes`, { method: "POST", body: form });
+  if (!res.ok) throw new Error(`Bit planes error: ${res.status}`);
+  return res.json();
+}
+
+export async function stegoPixelDiff(file: File): Promise<{ diff_map: string }> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${BASE}/stego/pixel-diff`, { method: "POST", body: form });
+  if (!res.ok) throw new Error(`Pixel diff error: ${res.status}`);
+  return res.json();
+}
+
+export async function stegoTextAnalyze(text: string): Promise<TextStegoResponse> {
+  const res = await fetch(`${BASE}/stego/text`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+  if (!res.ok) throw new Error(`Text stego error: ${res.status}`);
+  return res.json();
+}
