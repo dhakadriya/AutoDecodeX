@@ -10,6 +10,7 @@ import base64
 from backend.stego.lsb_extractor import extract_lsb, analyze_lsb, get_bit_planes, get_pixel_diff_map
 from backend.stego.entropy_analyzer import analyze_entropy
 from backend.stego.text_stego import extract_text_stego
+from backend.stego.metadata_analyzer import full_metadata_pipeline
 from backend.engine.orchestrator import decode as auto_decode
 from backend.scoring.scorer import score_text
 
@@ -169,3 +170,100 @@ async def analyze_text_stego(payload: dict):
             pass
 
     return result
+
+
+@stego_router.post("/metadata")
+async def metadata_endpoint(file: UploadFile = File(...)):
+    """
+    Full metadata extraction + analysis pipeline.
+    Extracts EXIF, PNG text chunks, scans for encoded values,
+    auto-decodes suspicious fields, detects embedded files.
+    """
+    _validate_image(file)
+    image_bytes = await file.read()
+    if len(image_bytes) > MAX_SIZE:
+        raise HTTPException(413, "Image too large. Max 10MB.")
+
+    result = full_metadata_pipeline(image_bytes)
+    return result
+
+
+@stego_router.post("/full-scan")
+async def full_scan(
+    file: UploadFile = File(...),
+    bits: int = Form(1),
+    channels: str = Form("RGB"),
+    password: Optional[str] = Form(None),
+):
+    """
+    Complete unified pipeline:
+    Step 1: Metadata extraction + analysis
+    Step 2: LSB extraction
+    Step 3: Entropy analysis
+    Step 4: Embedded file scan
+    Step 5: Auto-decode all findings
+    Returns merged ranked results.
+    """
+    _validate_image(file)
+    image_bytes = await file.read()
+    if len(image_bytes) > MAX_SIZE:
+        raise HTTPException(413, "Image too large. Max 10MB.")
+
+    bits = max(1, min(8, bits))
+
+    # Run all analyses
+    meta_result = full_metadata_pipeline(image_bytes)
+    lsb_result = extract_lsb(image_bytes, bits=bits, channels=channels, password=password or None)
+    entropy_result = analyze_entropy(image_bytes)
+
+    # Auto-decode LSB text
+    lsb_decode = None
+    lsb_text = lsb_result.get("ascii_text", "")
+    if lsb_text and len(lsb_text) >= 4:
+        try:
+            dr = auto_decode(lsb_text)
+            lsb_decode = {
+                "final_output": dr.final_output,
+                "path_description": dr.path_description,
+                "total_score": round(dr.total_score, 3),
+                "is_ctf_flag": dr.is_ctf_flag,
+                "steps": [
+                    {
+                        "step_number": s.step_number,
+                        "encoding_type": s.encoding_type,
+                        "confidence": s.confidence,
+                        "output_text": s.output_text[:200],
+                        "score": round(s.score, 3),
+                    }
+                    for s in dr.steps
+                ],
+            }
+        except Exception:
+            pass
+
+    # Collect all flags from all sources
+    all_flags = list(set(
+        meta_result["analysis"]["flags_found"] +
+        ([lsb_decode["final_output"]] if lsb_decode and lsb_decode.get("is_ctf_flag") else [])
+    ))
+
+    return {
+        "filename": file.filename,
+        "metadata": meta_result,
+        "lsb": lsb_result,
+        "lsb_decode": lsb_decode,
+        "entropy": {
+            "global_entropy": entropy_result["global_entropy"],
+            "channel_entropy": entropy_result["channel_entropy"],
+            "lsb_entropy": entropy_result["lsb_entropy"],
+            "stego_likelihood": entropy_result["stego_likelihood"],
+            "chi_square_score": entropy_result["chi_square_score"],
+            "suspicious": entropy_result["suspicious"],
+        },
+        "all_flags": all_flags,
+        "summary": {
+            **meta_result["summary"],
+            "lsb_suspicious": entropy_result["suspicious"],
+            "total_flags": len(all_flags),
+        },
+    }

@@ -194,3 +194,100 @@ export async function stegoTextAnalyze(text: string): Promise<TextStegoResponse>
   if (!res.ok) throw new Error(`Text stego error: ${res.status}`);
   return res.json();
 }
+
+// ── Metadata API ───────────────────────────────────────────────────────────
+
+export interface MetadataFinding {
+  field: string;
+  section: string;
+  raw_value: string;
+  length: number;
+  entropy: number;
+  flags: string[];
+  encoding: { type: string; confidence: number } | Record<string, never>;
+  decode_result: {
+    final_output: string;
+    path_description: string;
+    total_score: number;
+    is_ctf_flag: boolean;
+    steps: Array<{ step_number: number; encoding_type: string; confidence: number; output_text: string }>;
+  } | null;
+  suspicious: boolean;
+  suspicious_reasons: string[];
+}
+
+export interface MetadataResponse {
+  metadata: {
+    file_info: Record<string, string | number>;
+    exif: Record<string, string>;
+    gps: Record<string, string>;
+    png_text: Record<string, string>;
+    pil_info: Record<string, string>;
+  };
+  analysis: {
+    findings: MetadataFinding[];
+    flags_found: string[];
+    total_suspicious: number;
+    total_fields_scanned: number;
+  };
+  embedded_files: Array<{
+    offset: number;
+    offset_hex: string;
+    file_type: string;
+    signature_hex: string;
+    context: string;
+  }>;
+  summary: {
+    flags_found: string[];
+    suspicious_fields: number;
+    total_fields: number;
+    embedded_files_count: number;
+    has_exif: boolean;
+    has_gps: boolean;
+    has_png_text: boolean;
+  };
+}
+
+export interface FullScanResponse {
+  filename: string;
+  metadata: MetadataResponse;
+  lsb: StegoLSBResult;
+  lsb_decode: StegoDecodeResult | null;
+  entropy: StegoEntropy;
+  all_flags: string[];
+  summary: {
+    flags_found: string[];
+    suspicious_fields: number;
+    total_fields: number;
+    embedded_files_count: number;
+    has_exif: boolean;
+    has_gps: boolean;
+    has_png_text: boolean;
+    lsb_suspicious: boolean;
+    total_flags: number;
+  };
+}
+
+export async function stegoMetadata(file: File): Promise<MetadataResponse> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${BASE}/stego/metadata`, { method: "POST", body: form });
+  if (!res.ok) throw new Error(`Metadata API error: ${res.status}`);
+  return res.json();
+}
+
+export async function stegoFullScan(
+  file: File,
+  bits = 1,
+  channels = "RGB",
+  password = "",
+): Promise<FullScanResponse> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("bits", String(bits));
+  form.append("channels", channels);
+  if (password) form.append("password", password);
+  const res = await fetch(`${BASE}/stego/full-scan`, { method: "POST", body: form });
+  if (!res.ok) throw new Error(`Full scan error: ${res.status}`);
+  return res.json();
+}
