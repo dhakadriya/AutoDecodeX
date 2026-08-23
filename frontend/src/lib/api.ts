@@ -16,11 +16,13 @@ export interface DecodeResponse {
   path_description: string;
   is_ctf_flag: boolean;
   steps: DecodingStep[];
+  detections?: Detection[]; // Optional since backend doesn't always return it
 }
 
 export interface Detection {
   type: string;
   confidence: number;
+  encoding_type?: string; // Alias for backward compatibility
 }
 
 export interface DetectResponse {
@@ -41,10 +43,35 @@ export interface BruteForceResponse {
 }
 
 export async function decodeText(input: string, ctf_mode = false): Promise<DecodeResponse> {
+  let confidence_threshold: number | undefined = undefined;
+  let max_depth: number | undefined = undefined;
+
+  if (typeof window !== "undefined") {
+    const saved = localStorage.getItem("autodecodex_settings");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.confidenceThreshold !== undefined) {
+          confidence_threshold = Number(parsed.confidenceThreshold);
+        }
+        if (parsed.recursionDepth !== undefined) {
+          max_depth = Number(parsed.recursionDepth);
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+  }
+
   const res = await fetch(`${BASE}/decode`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ input, ctf_mode }),
+    body: JSON.stringify({
+      input,
+      ctf_mode,
+      confidence_threshold,
+      max_depth
+    }),
   });
   if (!res.ok) throw new Error(`API error: ${res.status}`);
   return res.json();

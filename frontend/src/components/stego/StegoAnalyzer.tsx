@@ -45,7 +45,7 @@ const ANALYZE_LOGS = [
 function TerminalLog({ logs }: { logs: string[] }) {
   const done = logs.some((l) => l.startsWith("[+]"));
   return (
-    <div className="bg-cyber-card border border-cyber-border rounded-lg p-3 font-mono text-xs space-y-1 max-h-40 overflow-y-auto">
+    <div className="bg-theme-card border border-theme-border rounded-lg p-3 font-mono text-xs space-y-1 max-h-40 overflow-y-auto">
       <AnimatePresence>
         {logs.map((log, i) => (
           <motion.div
@@ -53,22 +53,22 @@ function TerminalLog({ logs }: { logs: string[] }) {
             initial={{ opacity: 0, x: -8 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.15 }}
-            className={log.startsWith("[+]") ? "text-cyber-green" : "text-cyber-muted"}
+            className={log.startsWith("[+]") ? "text-theme-success" : "text-theme-secondary"}
           >
             {log}
           </motion.div>
         ))}
       </AnimatePresence>
-      {!done && logs.length > 0 && <span className="animate-pulse text-cyber-green">█</span>}
+      {!done && logs.length > 0 && <span className="animate-pulse text-theme-success">█</span>}
     </div>
   );
 }
 
 const TABS: Array<{ id: Tab; label: string; icon: React.ElementType; color: string }> = [
-  { id: "fullscan", label: "Full Scan", icon: Radar, color: "border-cyber-green text-cyber-green bg-cyber-green/10" },
-  { id: "metadata", label: "Metadata", icon: Database, color: "border-cyber-blue text-cyber-blue bg-cyber-blue/10" },
-  { id: "image", label: "LSB / Stego", icon: ScanLine, color: "border-cyber-purple text-cyber-purple bg-cyber-purple/10" },
-  { id: "text", label: "Text Stego", icon: FileText, color: "border-amber-400 text-amber-400 bg-amber-400/10" },
+  { id: "fullscan", label: "Full Scan", icon: Radar, color: "border-theme-success text-theme-success bg-theme-success/10" },
+  { id: "metadata", label: "Metadata", icon: Database, color: "border-theme-accent text-theme-accent bg-theme-accent/10" },
+  { id: "image", label: "LSB / Stego", icon: ScanLine, color: "border-theme-accent text-theme-accent bg-theme-accent/10" },
+  { id: "text", label: "Text Stego", icon: FileText, color: "border-theme-warning text-theme-warning bg-theme-warning/10" },
 ];
 
 export default function StegoAnalyzer() {
@@ -203,31 +203,29 @@ export default function StegoAnalyzer() {
     setFullScanResult(null); setTextResult(null); setTextInput("");
   };
 
-  const activeTab = TABS.find((t) => t.id === tab)!;
-
   return (
     <div className="space-y-6">
       {/* Header */}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyber-purple to-cyber-pink flex items-center justify-center">
-          <Eye size={16} className="text-white" />
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-3 select-none">
+        <div className="w-10 h-10 rounded-lg bg-theme-gradient flex items-center justify-center shadow-lg shadow-theme-accent/15">
+          <Eye size={20} className="text-white" />
         </div>
         <div>
-          <h2 className="text-lg font-bold font-mono text-cyber-text">
-            Stego <span className="neon-purple">Analyzer</span>
+          <h2 className="text-lg font-bold text-theme-primary">
+            Stego Analyzer
           </h2>
-          <p className="text-xs text-cyber-muted">ExifTool + LSB Extractor + CTF Forensics Lab</p>
+          <p className="text-xs text-theme-secondary">EXIF Extraction · LSB Analysis · Text Steganography</p>
         </div>
       </motion.div>
 
       {/* Tabs */}
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2 flex-wrap select-none">
         {TABS.map(({ id, label, icon: Icon, color }) => (
           <button
             key={id}
             onClick={() => setTab(id)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-xs font-mono transition-all
-              ${tab === id ? color : "border-cyber-border text-cyber-muted hover:border-cyber-muted"}`}
+              ${tab === id ? color : "border-theme-border bg-theme-surface text-theme-secondary hover:border-theme-border/70"}`}
           >
             <Icon size={12} />
             {label}
@@ -239,65 +237,67 @@ export default function StegoAnalyzer() {
         {/* ── TEXT STEGO TAB ─────────────────────────────────────────────── */}
         {tab === "text" ? (
           <motion.div key="text" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
-            <div className="bg-cyber-surface border border-cyber-border rounded-xl p-4 space-y-3">
-              <p className="text-xs text-cyber-muted uppercase tracking-widest">Paste suspicious text</p>
+            <div className="bg-theme-surface border border-theme-border rounded-xl p-4 space-y-3">
+              <p className="text-xs text-theme-secondary uppercase tracking-widest font-mono select-none">Paste suspicious text</p>
               <textarea
                 value={textInput}
                 onChange={(e) => setTextInput(e.target.value)}
                 placeholder="Paste text that may contain hidden data (zero-width chars, whitespace encoding, acrostics)..."
                 rows={6}
-                className="w-full bg-cyber-card border border-cyber-border rounded-lg p-3 text-sm font-mono text-cyber-text outline-none resize-none placeholder-cyber-muted"
+                className="w-full bg-theme-input border border-theme-border rounded-lg p-3 text-sm font-mono text-theme-primary outline-none resize-none placeholder-theme-muted"
               />
               <motion.button
                 onClick={handleTextAnalyze}
                 disabled={!textInput.trim() || textLoading}
                 whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                className="w-full py-2.5 rounded-lg font-mono text-xs font-semibold uppercase tracking-widest
-                  bg-gradient-to-r from-amber-400/20 to-cyber-blue/20 border border-amber-400/50 text-amber-400
-                  hover:border-amber-400 disabled:opacity-40 disabled:cursor-not-allowed
-                  transition-all flex items-center justify-center gap-2"
+                className="w-full py-2.5 rounded-lg font-mono text-xs font-bold uppercase tracking-widest
+                  bg-theme-gradient hover:opacity-90 border-transparent text-white
+                  disabled:opacity-40 disabled:cursor-not-allowed
+                  transition-all flex items-center justify-center gap-2 shadow-lg shadow-theme-accent/15"
               >
-                {textLoading
-                  ? <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                      className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full" />
-                  : <Zap size={13} />}
+                {textLoading ? (
+                  <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full" />
+                ) : (
+                  <Zap size={13} />
+                )}
                 {textLoading ? "Analyzing..." : "Analyze Text"}
               </motion.button>
             </div>
 
             {textResult && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
-                <div className="flex items-center gap-3 p-3 rounded-lg border border-cyber-border bg-cyber-card">
-                  <span className="text-xs text-cyber-muted font-mono">
-                    Invisible chars: <span className={textResult.invisible_chars_found > 0 ? "text-red-400" : "text-cyber-green"}>{textResult.invisible_chars_found}</span>
+                <div className="flex items-center gap-3 p-3 rounded-lg border border-theme-border bg-theme-surface">
+                  <span className="text-xs text-theme-secondary font-mono">
+                    Invisible chars: <span className={textResult.invisible_chars_found > 0 ? "text-theme-error font-bold" : "text-theme-success font-bold"}>{textResult.invisible_chars_found}</span>
                   </span>
                 </div>
                 {textResult.zero_width.found && (
-                  <div className="bg-cyber-card border border-cyber-purple/40 rounded-xl p-4 space-y-2">
-                    <p className="text-xs text-cyber-purple font-mono uppercase tracking-widest">Zero-Width Characters</p>
-                    <p className="text-xs text-cyber-muted">Bits: <span className="text-cyber-text font-mono">{textResult.zero_width.bits}</span></p>
-                    <p className="text-xs text-cyber-muted">Decoded: <span className="text-cyber-green font-mono">{textResult.zero_width.decoded || "—"}</span></p>
+                  <div className="bg-theme-surface border border-theme-accent/30 rounded-xl p-4 space-y-2">
+                    <p className="text-xs text-theme-accent font-mono uppercase tracking-widest font-bold">Zero-Width Characters</p>
+                    <p className="text-xs text-theme-secondary font-mono">Bits: <span className="text-theme-primary font-mono">{textResult.zero_width.bits}</span></p>
+                    <p className="text-xs text-theme-secondary font-mono">Decoded: <span className="text-theme-success font-mono font-bold">{textResult.zero_width.decoded || "—"}</span></p>
                     {textResult.zero_width.auto_decode && (
-                      <p className="text-xs text-cyber-green font-mono">→ {textResult.zero_width.auto_decode.final_output}{textResult.zero_width.auto_decode.is_ctf_flag && " 🚩 FLAG"}</p>
+                      <p className="text-xs text-theme-success font-mono font-bold">→ {textResult.zero_width.auto_decode.final_output}{textResult.zero_width.auto_decode.is_ctf_flag && " 🚩 FLAG"}</p>
                     )}
                   </div>
                 )}
                 {textResult.whitespace.found && (
-                  <div className="bg-cyber-card border border-cyber-blue/40 rounded-xl p-4 space-y-2">
-                    <p className="text-xs text-cyber-blue font-mono uppercase tracking-widest">Whitespace Encoding</p>
-                    <p className="text-xs text-cyber-muted">Decoded: <span className="text-cyber-text font-mono">{textResult.whitespace.decoded || "—"}</span></p>
+                  <div className="bg-theme-surface border border-theme-accent/30 rounded-xl p-4 space-y-2">
+                    <p className="text-xs text-theme-accent font-mono uppercase tracking-widest font-bold">Whitespace Encoding</p>
+                    <p className="text-xs text-theme-secondary font-mono">Decoded: <span className="text-theme-primary font-mono">{textResult.whitespace.decoded || "—"}</span></p>
                   </div>
                 )}
-                <div className="bg-cyber-card border border-cyber-border rounded-xl p-4 space-y-2">
-                  <p className="text-xs text-cyber-muted font-mono uppercase tracking-widest">Acrostic Analysis</p>
-                  <p className="text-xs text-cyber-muted">First letter each line: <span className="text-cyber-text font-mono">{textResult.first_letters.first_letter_each_line}</span></p>
-                  <p className="text-xs text-cyber-muted">First letter each word: <span className="text-cyber-text font-mono">{textResult.first_letters.first_letter_each_word}</span></p>
+                <div className="bg-theme-surface border border-theme-border rounded-xl p-4 space-y-2">
+                  <p className="text-xs text-theme-secondary font-mono uppercase tracking-widest">Acrostic Analysis</p>
+                  <p className="text-xs text-theme-secondary font-mono">First letter each line: <span className="text-theme-primary font-mono">{textResult.first_letters.first_letter_each_line}</span></p>
+                  <p className="text-xs text-theme-secondary font-mono">First letter each word: <span className="text-theme-primary font-mono">{textResult.first_letters.first_letter_each_word}</span></p>
                 </div>
                 {textResult.unicode_hidden.length > 0 && (
-                  <div className="bg-cyber-card border border-amber-400/40 rounded-xl p-4 space-y-2">
-                    <p className="text-xs text-amber-400 font-mono uppercase tracking-widest">Unicode Anomalies ({textResult.unicode_hidden.length})</p>
+                  <div className="bg-theme-surface border border-theme-warning/30 rounded-xl p-4 space-y-2">
+                    <p className="text-xs text-theme-warning font-mono uppercase tracking-widest">Unicode Anomalies ({textResult.unicode_hidden.length})</p>
                     {textResult.unicode_hidden.slice(0, 5).map((a, i) => (
-                      <p key={i} className="text-xs font-mono text-cyber-muted">pos {a.position}: <span className="text-cyber-text">{a.char}</span> ({a.codepoint})</p>
+                      <p key={i} className="text-xs font-mono text-theme-secondary">pos {a.position}: <span className="text-theme-primary">{a.char}</span> ({a.codepoint})</p>
                     ))}
                   </div>
                 )}
@@ -312,7 +312,7 @@ export default function StegoAnalyzer() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6"
+            className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6"
           >
             {/* Left: results area */}
             <div className="space-y-4">
@@ -321,7 +321,7 @@ export default function StegoAnalyzer() {
               <AnimatePresence>
                 {error && (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                    className="p-3 rounded-lg border border-red-500/40 bg-red-500/10 text-red-400 text-xs font-mono">
+                    className="p-3 rounded-lg border border-theme-error/30 bg-theme-error/10 text-theme-error text-xs font-mono">
                     ⚠ {error}
                   </motion.div>
                 )}
@@ -333,28 +333,28 @@ export default function StegoAnalyzer() {
                   {/* All flags banner */}
                   {fullScanResult.all_flags.length > 0 && (
                     <motion.div
-                      animate={{ boxShadow: ["0 0 10px rgba(0,255,136,0.2)", "0 0 30px rgba(0,255,136,0.5)", "0 0 10px rgba(0,255,136,0.2)"] }}
+                      animate={{ boxShadow: ["0 0 10px rgba(16,185,129,0.15)", "0 0 25px rgba(16,185,129,0.3)", "0 0 10px rgba(16,185,129,0.15)"] }}
                       transition={{ duration: 2, repeat: Infinity }}
-                      className="p-4 rounded-xl border border-cyber-green/60 bg-cyber-green/10"
+                      className="p-4 rounded-xl border border-theme-success/40 bg-theme-success/10"
                     >
-                      <p className="text-sm font-mono font-bold text-cyber-green mb-2">
+                      <p className="text-sm font-mono font-bold text-theme-success mb-2">
                         🚩 {fullScanResult.all_flags.length} FLAG{fullScanResult.all_flags.length > 1 ? "S" : ""} DISCOVERED
                       </p>
                       {fullScanResult.all_flags.map((f, i) => (
-                        <p key={i} className="text-sm font-mono text-cyber-green neon-green">{f}</p>
+                        <p key={i} className="text-sm font-mono text-theme-success font-bold">{f}</p>
                       ))}
                     </motion.div>
                   )}
                   {/* Summary stats */}
                   <div className="grid grid-cols-3 gap-3">
                     {[
-                      { label: "Metadata Fields", value: fullScanResult.summary.total_fields, color: "text-cyber-blue" },
-                      { label: "Suspicious", value: fullScanResult.summary.suspicious_fields, color: "text-amber-400" },
-                      { label: "Embedded Files", value: fullScanResult.summary.embedded_files_count, color: fullScanResult.summary.embedded_files_count > 0 ? "text-red-400" : "text-cyber-muted" },
+                      { label: "Metadata Fields", value: fullScanResult.summary.total_fields, color: "text-theme-accent" },
+                      { label: "Suspicious", value: fullScanResult.summary.suspicious_fields, color: "text-theme-warning" },
+                      { label: "Embedded Files", value: fullScanResult.summary.embedded_files_count, color: fullScanResult.summary.embedded_files_count > 0 ? "text-theme-error animate-pulse" : "text-theme-secondary" },
                     ].map((s) => (
-                      <div key={s.label} className="bg-cyber-card border border-cyber-border rounded-lg p-3 text-center">
+                      <div key={s.label} className="bg-theme-surface border border-theme-border rounded-lg p-3 text-center">
                         <p className={`text-lg font-bold font-mono ${s.color}`}>{s.value}</p>
-                        <p className="text-xs text-cyber-muted">{s.label}</p>
+                        <p className="text-xs text-theme-secondary mt-0.5 font-mono">{s.label}</p>
                       </div>
                     ))}
                   </div>
@@ -382,7 +382,7 @@ export default function StegoAnalyzer() {
                 <>
                   <StegoResults result={stegoResult} bruteResults={bruteResults} diffMap={diffMap} />
                   {planes && (
-                    <div className="bg-cyber-surface border border-cyber-border rounded-xl p-4">
+                    <div className="bg-theme-surface border border-theme-border rounded-xl p-4">
                       <BitPlaneViewer planes={planes} />
                     </div>
                   )}
@@ -392,7 +392,7 @@ export default function StegoAnalyzer() {
 
             {/* Right: controls */}
             <div className="space-y-4">
-              <div className="bg-cyber-surface border border-cyber-border rounded-xl p-4 space-y-4">
+              <div className="bg-theme-surface border border-theme-border rounded-xl p-4 space-y-4">
                 <StegoUploader
                   onFile={setFile} file={file}
                   onClear={() => { setFile(null); setStegoResult(null); setBruteResults(null); setMetaResult(null); setFullScanResult(null); setLogs([]); }}
@@ -404,30 +404,30 @@ export default function StegoAnalyzer() {
                 {(tab === "image" || tab === "fullscan") && (
                   <div className="space-y-3">
                     <div>
-                      <p className="text-xs text-cyber-muted mb-2">LSB Depth: <span className="text-cyber-blue">{bits} bit(s)</span></p>
+                      <p className="text-xs text-theme-secondary mb-2 font-mono">LSB Depth: <span className="text-theme-accent font-bold">{bits} bit(s)</span></p>
                       <input type="range" min={1} max={8} value={bits}
                         onChange={(e) => setBits(Number(e.target.value))}
-                        className="w-full accent-cyber-blue" />
-                      <div className="flex justify-between text-xs text-cyber-muted mt-1"><span>1</span><span>4</span><span>8</span></div>
+                        className="w-full accent-theme-accent h-1.5 bg-theme-border rounded-lg appearance-none cursor-pointer" />
+                      <div className="flex justify-between text-xs text-theme-muted mt-1 font-mono"><span>1</span><span>4</span><span>8</span></div>
                     </div>
                     <div>
-                      <p className="text-xs text-cyber-muted mb-2">Channels</p>
+                      <p className="text-xs text-theme-secondary mb-2 font-mono">Channels</p>
                       <div className="flex gap-2">
                         {["R", "G", "B", "RGB"].map((ch) => (
                           <button key={ch} onClick={() => setChannels(ch)}
                             className={`flex-1 py-1.5 text-xs font-mono rounded border transition-all
-                              ${channels === ch ? "border-cyber-blue text-cyber-blue bg-cyber-blue/10" : "border-cyber-border text-cyber-muted hover:border-cyber-muted"}`}>
+                              ${channels === ch ? "border-theme-accent text-theme-accent bg-theme-accent/10 font-bold" : "border-theme-border bg-theme-input text-theme-secondary hover:border-theme-border/70"}`}>
                             {ch}
                           </button>
                         ))}
                       </div>
                     </div>
                     <button onClick={() => setAutoDecode(!autoDecode)}
-                      className="flex items-center gap-3 w-full p-3 rounded-lg border border-cyber-border bg-cyber-card">
-                      <span className="text-xs font-mono flex-1 text-left text-cyber-muted">Auto-Decode extracted data</span>
-                      <motion.div className={`w-10 h-5 rounded-full relative ${autoDecode ? "bg-cyber-green/30 border border-cyber-green" : "bg-cyber-border"}`}>
+                      className="flex items-center gap-3 w-full p-3 rounded-lg border border-theme-border bg-theme-card">
+                      <span className="text-xs font-mono flex-1 text-left text-theme-secondary">Auto-Decode extracted data</span>
+                      <motion.div className={`w-10 h-5 rounded-full relative ${autoDecode ? "bg-theme-success/20 border border-theme-success" : "bg-theme-border"}`}>
                         <motion.div animate={{ x: autoDecode ? 20 : 2 }} transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                          className={`absolute top-0.5 w-4 h-4 rounded-full ${autoDecode ? "bg-cyber-green" : "bg-cyber-muted"}`} />
+                          className={`absolute top-0.5 w-4 h-4 rounded-full ${autoDecode ? "bg-theme-success" : "bg-theme-muted"}`} />
                       </motion.div>
                     </button>
                   </div>
@@ -438,14 +438,16 @@ export default function StegoAnalyzer() {
                   {tab === "fullscan" && (
                     <motion.button onClick={handleFullScan} disabled={!file || loading}
                       whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                      className="w-full py-2.5 rounded-lg font-mono text-xs font-semibold uppercase tracking-widest
-                        bg-gradient-to-r from-cyber-green/20 to-cyber-blue/20 border border-cyber-green/50 text-cyber-green
-                        hover:border-cyber-green disabled:opacity-40 disabled:cursor-not-allowed
-                        transition-all flex items-center justify-center gap-2">
-                      {loading
-                        ? <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                            className="w-4 h-4 border-2 border-cyber-green border-t-transparent rounded-full" />
-                        : <Radar size={13} />}
+                      className="w-full py-2.5 rounded-lg font-mono text-xs font-bold uppercase tracking-widest
+                        bg-theme-gradient hover:opacity-90 border-transparent text-white
+                        disabled:opacity-40 disabled:cursor-not-allowed
+                        transition-all flex items-center justify-center gap-2 shadow-lg shadow-theme-accent/15">
+                      {loading ? (
+                        <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                          className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full" />
+                      ) : (
+                        <Radar size={13} />
+                      )}
                       {loading ? "Scanning..." : "Full Scan"}
                     </motion.button>
                   )}
@@ -453,14 +455,16 @@ export default function StegoAnalyzer() {
                   {tab === "metadata" && (
                     <motion.button onClick={handleMetadata} disabled={!file || loading}
                       whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                      className="w-full py-2.5 rounded-lg font-mono text-xs font-semibold uppercase tracking-widest
-                        bg-gradient-to-r from-cyber-blue/20 to-cyber-purple/20 border border-cyber-blue/50 text-cyber-blue
-                        hover:border-cyber-blue disabled:opacity-40 disabled:cursor-not-allowed
-                        transition-all flex items-center justify-center gap-2">
-                      {loading
-                        ? <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                            className="w-4 h-4 border-2 border-cyber-blue border-t-transparent rounded-full" />
-                        : <Database size={13} />}
+                      className="w-full py-2.5 rounded-lg font-mono text-xs font-bold uppercase tracking-widest
+                        bg-theme-gradient hover:opacity-90 border-transparent text-white
+                        disabled:opacity-40 disabled:cursor-not-allowed
+                        transition-all flex items-center justify-center gap-2 shadow-lg shadow-theme-accent/15">
+                      {loading ? (
+                        <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                          className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full" />
+                      ) : (
+                        <Database size={13} />
+                      )}
                       {loading ? "Extracting..." : "Extract Metadata"}
                     </motion.button>
                   )}
@@ -469,23 +473,26 @@ export default function StegoAnalyzer() {
                     <>
                       <motion.button onClick={handleAnalyze} disabled={!file || loading}
                         whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                        className="w-full py-2.5 rounded-lg font-mono text-xs font-semibold uppercase tracking-widest
-                          bg-gradient-to-r from-cyber-purple/20 to-cyber-pink/20 border border-cyber-purple/50 text-cyber-purple
-                          hover:border-cyber-purple disabled:opacity-40 disabled:cursor-not-allowed
-                          transition-all flex items-center justify-center gap-2">
-                        {loading
-                          ? <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                              className="w-4 h-4 border-2 border-cyber-purple border-t-transparent rounded-full" />
-                          : <Eye size={13} />}
+                        className="w-full py-2.5 rounded-lg font-mono text-xs font-bold uppercase tracking-widest
+                          bg-theme-gradient hover:opacity-90 border-transparent text-white
+                          disabled:opacity-40 disabled:cursor-not-allowed
+                          transition-all flex items-center justify-center gap-2 shadow-lg shadow-theme-accent/15">
+                        {loading ? (
+                          <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                            className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full" />
+                        ) : (
+                          <Eye size={13} />
+                        )}
                         {loading ? "Scanning..." : "Analyze LSB"}
                       </motion.button>
+                      
                       <motion.button onClick={handleBruteForce} disabled={!file || loading}
                         whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                        className="w-full py-2.5 rounded-lg font-mono text-xs font-semibold uppercase tracking-widest
-                          bg-gradient-to-r from-cyber-pink/20 to-red-500/20 border border-cyber-pink/50 text-cyber-pink
-                          hover:border-cyber-pink disabled:opacity-40 disabled:cursor-not-allowed
+                        className="w-full py-2.5 rounded-lg font-mono text-xs font-bold uppercase tracking-widest
+                          bg-theme-surface hover:bg-theme-hover border border-theme-border text-theme-primary
+                          disabled:opacity-40 disabled:cursor-not-allowed
                           transition-all flex items-center justify-center gap-2">
-                        <Layers size={13} />
+                        <Layers size={13} className="text-theme-accent" />
                         Brute Force + Bit Planes
                       </motion.button>
                     </>
@@ -493,7 +500,7 @@ export default function StegoAnalyzer() {
 
                   {(stegoResult || bruteResults || metaResult || fullScanResult) && (
                     <button onClick={handleReset}
-                      className="flex items-center gap-2 text-xs text-cyber-muted hover:text-cyber-text transition-colors font-mono mx-auto">
+                      className="flex items-center gap-2 text-xs text-theme-secondary hover:text-theme-primary transition-colors font-mono mx-auto mt-2 select-none">
                       <RotateCcw size={11} /> Reset
                     </button>
                   )}

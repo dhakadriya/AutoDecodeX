@@ -1,28 +1,71 @@
 """
 All decoder implementations.
+
+This module contains all supported encoding/decoding implementations.
+Each decoder must inherit from BaseDecoder and implement the decode() method.
+
+Supported encodings:
+- Base64, Base32, Base85
+- Hexadecimal (with multiple format support)
+- Binary (8-bit groups)
+- Decimal ASCII
+- ROT13
+- Caesar cipher (26 shifts with brute force)
+- Morse Code
+- URL Encoding
+- HTML Entity Encoding
+- Unicode Escape Sequences
+- Single-byte XOR (brute force)
 """
 import base64
 import binascii
 import urllib.parse
+import html
 import re
-from typing import Optional
+import codecs
+import zlib
+import gzip
+from typing import Optional, List, Dict, Any
 from .base_decoder import BaseDecoder
 
 
 class Base64Decoder(BaseDecoder):
+    """
+    Base64 decoder with automatic padding correction.
+    
+    Handles standard Base64, Base64URL, and variants with/without padding.
+    """
     name = "base64"
 
     def decode(self, text: str) -> Optional[str]:
         try:
             text = text.strip()
+            
+            # Skip if too short
+            if len(text) < 4:
+                return None
+                
             # Add padding if needed
             padding = 4 - len(text) % 4
             if padding != 4:
                 text += '=' * padding
-            decoded = base64.b64decode(text).decode('utf-8', errors='replace')
-            # Reject if too many replacement chars
-            if decoded.count('\ufffd') > len(decoded) * 0.1:
+                
+            # Try standard Base64 first
+            try:
+                raw_bytes = base64.b64decode(text, validate=True)
+            except Exception:
+                # Try Base64URL variant
+                raw_bytes = base64.urlsafe_b64decode(text)
+                
+            try:
+                decoded = raw_bytes.decode('utf-8')
+            except Exception:
+                decoded = raw_bytes.decode('latin-1')
+                
+            # Reject if output is just whitespace
+            if not decoded.strip():
                 return None
+                
             return decoded
         except Exception:
             return None
@@ -37,9 +80,11 @@ class Base32Decoder(BaseDecoder):
             padding = 8 - len(text) % 8
             if padding != 8:
                 text += '=' * padding
-            decoded = base64.b32decode(text).decode('utf-8', errors='replace')
-            if decoded.count('\ufffd') > len(decoded) * 0.1:
-                return None
+            raw_bytes = base64.b32decode(text)
+            try:
+                decoded = raw_bytes.decode('utf-8')
+            except Exception:
+                decoded = raw_bytes.decode('latin-1')
             return decoded
         except Exception:
             return None
@@ -50,23 +95,47 @@ class Base85Decoder(BaseDecoder):
 
     def decode(self, text: str) -> Optional[str]:
         try:
-            decoded = base64.b85decode(text.strip()).decode('utf-8', errors='replace')
-            if decoded.count('\ufffd') > len(decoded) * 0.1:
-                return None
+            raw_bytes = base64.b85decode(text.strip())
+            try:
+                decoded = raw_bytes.decode('utf-8')
+            except Exception:
+                decoded = raw_bytes.decode('latin-1')
             return decoded
         except Exception:
             return None
 
 
 class HexDecoder(BaseDecoder):
+    """
+    Hexadecimal decoder with multiple format support.
+    
+    Supports:
+    - Plain hex: 48656c6c6f
+    - 0x prefix: 0x48656c6c6f
+    - \\x prefix: \\x48\\x65\\x6c\\x6c\\x6f
+    - Space/colon/dash separated: 48:65:6c:6c:6f
+    """
     name = "hex"
 
     def decode(self, text: str) -> Optional[str]:
         try:
             text = text.strip().replace(' ', '').replace('0x', '').replace('\\x', '')
-            decoded = bytes.fromhex(text).decode('utf-8', errors='replace')
-            if decoded.count('\ufffd') > len(decoded) * 0.1:
+            text = text.replace(':', '').replace('-', '').replace(',', '')
+            
+            # Must be even length
+            if not text or len(text) % 2 != 0:
                 return None
+                
+            raw_bytes = bytes.fromhex(text)
+            try:
+                decoded = raw_bytes.decode('utf-8')
+            except Exception:
+                decoded = raw_bytes.decode('latin-1')
+                
+            # Reject if empty
+            if not decoded.strip():
+                return None
+                
             return decoded
         except Exception:
             return None
@@ -217,6 +286,131 @@ class XORDecoder(BaseDecoder):
         return results[:10]
 
 
+class HTMLEntityDecoder(BaseDecoder):
+    """
+    HTML entity decoder.
+    
+    Decodes both named entities (&amp;) and numeric entities (&#65; &#x41;).
+    """
+    name = "html_entity"
+
+    def decode(self, text: str) -> Optional[str]:
+        try:
+            # Check if there are any entities at all
+            if '&' not in text or ';' not in text:
+                return None
+                
+            decoded = html.unescape(text)
+            
+            # Only return if something changed
+            if decoded == text:
+                return None
+                
+            return decoded
+        except Exception:
+            return None
+
+
+class UnicodeEscapeDecoder(BaseDecoder):
+    """
+    Unicode escape sequence decoder.
+    
+    Supports:
+    - \\uXXXX format: \\u0048\\u0065\\u006c\\u006c\\u006f
+    - \\UXXXXXXXX format: \\U00000048
+    - Python string format: u'\\u0048\\u0065'
+    """
+    name = "unicode_escape"
+
+    def decode(self, text: str) -> Optional[str]:
+        try:
+            # Check if text contains unicode escapes
+            if '\\u' not in text and '\\U' not in text:
+                return None
+                
+            # Try decoding as unicode escape
+            decoded = text.encode('utf-8').decode('unicode-escape')
+            
+            # Only return if something changed
+            if decoded == text:
+                return None
+                
+            # Reject if too many replacement chars
+            if decoded.count('\ufffd') > len(decoded) * 0.1:
+                return None
+                
+            return decoded
+        except Exception:
+            return None
+
+
+class UUDecoder(BaseDecoder):
+    name = "uuencoding"
+
+    def decode(self, text: str) -> Optional[str]:
+        try:
+            text = text.strip()
+            if not text:
+                return None
+            
+            lines = text.splitlines()
+            decoded_bytes = bytearray()
+            
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+                if line.startswith("begin ") or line == "end" or line == "`":
+                    continue
+                
+                if len(line) < 1:
+                    continue
+                    
+                first_char = ord(line[0])
+                if first_char == 96:
+                    line = chr(32) + line[1:]
+                elif not (32 <= first_char <= 95):
+                    continue
+                    
+                try:
+                    import binascii
+                    decoded_bytes.extend(binascii.a2b_uu(line))
+                except Exception:
+                    pass
+            
+            if not decoded_bytes:
+                return None
+                
+            # Strip trailing nulls often added as padding in uuencoding
+            return decoded_bytes.decode('utf-8', errors='replace').rstrip('\x00')
+        except Exception:
+            return None
+
+
+class ZlibDecoder(BaseDecoder):
+    name = "zlib"
+
+    def decode(self, text: str) -> Optional[str]:
+        try:
+            raw = text.encode('latin-1')
+            decompressed = zlib.decompress(raw)
+            return decompressed.decode('utf-8', errors='replace')
+        except Exception:
+            return None
+
+
+class GzipDecoder(BaseDecoder):
+    name = "gzip"
+
+    def decode(self, text: str) -> Optional[str]:
+        try:
+            raw = text.encode('latin-1')
+            decompressed = gzip.decompress(raw)
+            return decompressed.decode('utf-8', errors='replace')
+        except Exception:
+            return None
+
+
 # Registry
 DECODERS: dict[str, BaseDecoder] = {
     'base64': Base64Decoder(),
@@ -229,5 +423,10 @@ DECODERS: dict[str, BaseDecoder] = {
     'caesar': CaesarDecoder(),
     'morse': MorseDecoder(),
     'url': URLDecoder(),
+    'html_entity': HTMLEntityDecoder(),
+    'unicode_escape': UnicodeEscapeDecoder(),
+    'uuencoding': UUDecoder(),
+    'zlib': ZlibDecoder(),
+    'gzip': GzipDecoder(),
     'xor': XORDecoder(),
 }

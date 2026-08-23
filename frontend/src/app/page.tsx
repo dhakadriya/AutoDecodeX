@@ -1,263 +1,219 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Cpu, Github, Zap, RotateCcw, Eye } from "lucide-react";
 
-import CyberInput from "@/components/CyberInput";
-import SettingsPanel from "@/components/SettingsPanel";
-import DetectionBadges from "@/components/DetectionBadges";
-import DecodingPipeline from "@/components/DecodingPipeline";
-import TerminalOutput from "@/components/TerminalOutput";
+import Sidebar from "@/components/layout/Sidebar";
+import InspectorPanel from "@/components/layout/InspectorPanel";
+import LiveAnalysisFeed, { type LogEntry } from "@/components/layout/LiveAnalysisFeed";
+import CommandPalette from "@/components/layout/CommandPalette";
+import ThemeSwitcher from "@/components/layout/ThemeSwitcher";
+
+// Workspaces
+import DecoderWorkspace from "@/components/workspaces/DecoderWorkspace";
 import StegoAnalyzer from "@/components/stego/StegoAnalyzer";
-
-import {
-  decodeText, detectText, bruteForce,
-  type DecodeResponse, type Detection, type BruteForceResponse,
-} from "@/lib/api";
-
-interface Settings {
-  ctfMode: boolean;
-  bruteForce: "none" | "caesar" | "xor";
-}
-
-type AppTab = "decode" | "stego";
+import MetadataWorkspace from "@/components/workspaces/MetadataWorkspace";
+import FileAnalyzerWorkspace from "@/components/workspaces/FileAnalyzerWorkspace";
+import SettingsWorkspace from "@/components/workspaces/SettingsWorkspace";
+import ExperimentsWorkspace from "@/components/workspaces/ExperimentsWorkspace";
 
 export default function Home() {
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<DecodeResponse | null>(null);
-  const [detections, setDetections] = useState<Detection[]>([]);
-  const [bruteForceResult, setBruteForceResult] = useState<BruteForceResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [settings, setSettings] = useState<Settings>({ ctfMode: false, bruteForce: "none" });
-  const [appTab, setAppTab] = useState<AppTab>("decode");
+  const [activeView, setActiveView] = useState("decoder");
+  const [inspectorData, setInspectorData] = useState<any>(null);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 
+  const addLog = useCallback((type: LogEntry["type"], message: string) => {
+    const newLog: LogEntry = {
+      id: `${Date.now()}-${Math.random()}`,
+      type,
+      message,
+      timestamp: Date.now(),
+    };
+    setLogs((prev) => [...prev, newLog]);
+  }, []);
+
+  const clearLogs = useCallback(() => {
+    setLogs([]);
+  }, []);
+
+  // Global Keyboard Shortcuts
   useEffect(() => {
-    if (!input.trim() || input.length < 4) { setDetections([]); return; }
-    const timer = setTimeout(async () => {
-      try { const res = await detectText(input); setDetections(res.detections); } catch { /* silent */ }
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [input]);
-
-  const handleDecode = useCallback(async () => {
-    if (!input.trim()) return;
-    setLoading(true); setError(null); setResult(null); setBruteForceResult(null);
-    try {
-      if (settings.bruteForce !== "none") {
-        const bf = await bruteForce(input, settings.bruteForce);
-        setBruteForceResult(bf);
+    const handleGlobalShortcuts = (e: KeyboardEvent) => {
+      let enabled = true;
+      try {
+        const saved = localStorage.getItem("autodecodex_settings");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.enableKeyboardShortcuts !== undefined) {
+            enabled = !!parsed.enableKeyboardShortcuts;
+          }
+        }
+      } catch (err) {
+        // ignore
       }
-      const res = await decodeText(input, settings.ctfMode);
-      setResult(res);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to connect to backend.");
-    } finally {
-      setLoading(false);
-    }
-  }, [input, settings]);
 
-  const handleReset = () => {
-    setInput(""); setResult(null); setDetections([]);
-    setBruteForceResult(null); setError(null);
-  };
+      if (!enabled) return;
+
+      const isMac = typeof window !== "undefined" && navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const cmdKey = isMac ? e.metaKey : e.ctrlKey;
+
+      // Cmd/Ctrl + K toggle command palette
+      if (cmdKey && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setCommandPaletteOpen(prev => !prev);
+      }
+
+      // Nav views: Cmd/Ctrl + 1/2/3/4/5/,
+      if (cmdKey && e.key === '1') {
+        e.preventDefault();
+        setActiveView("decoder");
+      }
+      if (cmdKey && e.key === '2') {
+        e.preventDefault();
+        setActiveView("stego");
+      }
+      if (cmdKey && e.key === '3') {
+        e.preventDefault();
+        setActiveView("metadata");
+      }
+      if (cmdKey && e.key === '4') {
+        e.preventDefault();
+        setActiveView("file");
+      }
+      if (cmdKey && e.key === '5') {
+        e.preventDefault();
+        setActiveView("experiments");
+      }
+      if (cmdKey && e.key === ',') {
+        e.preventDefault();
+        setActiveView("settings");
+      }
+
+      // Action clear: Shift + C
+      if (e.shiftKey && e.key === 'C') {
+        e.preventDefault();
+        clearLogs();
+        addLog("info", "Live logs cleared via shortcut.");
+      }
+    };
+
+    window.addEventListener("keydown", handleGlobalShortcuts);
+    return () => window.removeEventListener("keydown", handleGlobalShortcuts);
+  }, [clearLogs, addLog]);
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      <motion.header
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="border-b border-cyber-border bg-cyber-surface/80 backdrop-blur-sm sticky top-0 z-50"
-      >
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <motion.div
-              animate={{ rotate: [0, 360] }}
-              transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-              className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyber-blue to-cyber-purple flex items-center justify-center"
-            >
-              <Cpu size={16} className="text-white" />
-            </motion.div>
-            <div>
-              <h1 className="text-lg font-bold font-mono neon-blue tracking-wider">AutoDecodeX</h1>
-              <p className="text-xs text-cyber-muted">AI-Assisted Encoding Decoder + Stego Lab</p>
+    <div className="h-screen flex bg-theme-bg text-theme-primary overflow-hidden">
+      {/* Animated background */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,var(--border-color-glow),transparent_50%)] opacity-40" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,var(--border-color-glow),transparent_50%)] opacity-30" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(6,182,212,0.015)_1px,transparent_1px),linear-gradient(to_bottom,rgba(6,182,212,0.015)_1px,transparent_1px)] bg-[size:4rem_4rem]" />
+      </div>
+
+      {/* Command Palette */}
+      <CommandPalette
+        isOpen={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
+        onViewChange={setActiveView}
+        onClearLogs={clearLogs}
+      />
+
+      {/* 3-Panel Layout */}
+      <div className="relative z-10 flex-1 flex overflow-hidden">
+        {/* Left Sidebar */}
+        <Sidebar activeView={activeView} onViewChange={setActiveView} />
+
+        {/* Main Workspace */}
+        <div className="flex-1 flex flex-col overflow-hidden bg-theme-bg">
+          {/* Top Header bar */}
+          <header className="h-14 border-b border-theme-border bg-theme-surface/30 backdrop-blur-md px-6 flex items-center justify-between shrink-0 select-none">
+            <div className="flex items-center gap-3">
+              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              <span className="text-xs font-mono font-bold tracking-wider text-theme-secondary uppercase">
+                Forensic Node: {activeView.replace("go-", "").toUpperCase()}
+              </span>
             </div>
-          </div>
-          <div className="flex items-center gap-4">
-            {settings.ctfMode && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyber-green/10 border border-cyber-green/40"
-              >
-                <Zap size={10} className="text-cyber-green" />
-                <span className="text-xs text-cyber-green font-mono">CTF MODE</span>
-              </motion.div>
-            )}
-            <a href="https://github.com" target="_blank" rel="noopener noreferrer"
-              className="text-cyber-muted hover:text-cyber-text transition-colors">
-              <Github size={18} />
-            </a>
-          </div>
-        </div>
-      </motion.header>
-
-      {/* Main */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-6 py-8">
-
-        {/* Tab switcher */}
-        <div className="flex gap-2 mb-8">
-          <button
-            onClick={() => setAppTab("decode")}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg border text-sm font-mono font-semibold transition-all
-              ${appTab === "decode"
-                ? "border-cyber-blue text-cyber-blue bg-cyber-blue/10"
-                : "border-cyber-border text-cyber-muted hover:border-cyber-muted"}`}
-          >
-            <Zap size={14} />
-            Decoder
-          </button>
-          <button
-            onClick={() => setAppTab("stego")}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg border text-sm font-mono font-semibold transition-all
-              ${appTab === "stego"
-                ? "border-cyber-purple text-cyber-purple bg-cyber-purple/10"
-                : "border-cyber-border text-cyber-muted hover:border-cyber-muted"}`}
-          >
-            <Eye size={14} />
-            Stego Analyzer
-          </button>
-        </div>
-
-        <AnimatePresence mode="wait">
-          {appTab === "decode" ? (
-            <motion.div
-              key="decode"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6"
-            >
-              {/* Left column */}
-              <div className="space-y-6">
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="space-y-1">
-                  <h2 className="text-2xl font-bold font-mono text-cyber-text">
-                    Decode <span className="neon-green">anything</span>.
-                  </h2>
-                  <p className="text-sm text-cyber-muted">Multi-layer encoding detection with step-by-step explainability.</p>
-                </motion.div>
-
-                <CyberInput value={input} onChange={setInput} onDecode={handleDecode} loading={loading} />
-
-                {(result || bruteForceResult) && (
-                  <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={handleReset}
-                    className="flex items-center gap-2 text-xs text-cyber-muted hover:text-cyber-text transition-colors font-mono">
-                    <RotateCcw size={12} /> Reset
-                  </motion.button>
-                )}
-
-                <AnimatePresence>
-                  {error && (
-                    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                      className="p-4 rounded-lg border border-red-500/40 bg-red-500/10 text-red-400 text-sm font-mono">
-                      ⚠ {error}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                <AnimatePresence>
-                  {detections.length > 0 && !loading && (
-                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-                      <DetectionBadges detections={detections} />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                <AnimatePresence>
-                  {(loading || (result && result.steps.length > 0)) && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                      className="bg-cyber-surface border border-cyber-border rounded-xl p-5">
-                      <DecodingPipeline steps={result?.steps ?? []} loading={loading} />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                <TerminalOutput result={result} bruteForceResult={bruteForceResult} />
+            <div className="flex items-center gap-4">
+              <div className="hidden md:flex items-center gap-1.5 text-[10px] font-mono text-theme-muted bg-theme-bg border border-theme-border px-2 py-1 rounded-md">
+                <span>Press</span>
+                <kbd className="bg-theme-hover border border-theme-border px-1 rounded text-theme-secondary text-[9px] font-sans">⌘</kbd>
+                <kbd className="bg-theme-hover border border-theme-border px-1 rounded text-theme-secondary text-[9px] font-sans">K</kbd>
+                <span>for commands</span>
               </div>
+              <ThemeSwitcher />
+            </div>
+          </header>
 
-              {/* Right column */}
-              <div className="space-y-4">
-                <SettingsPanel settings={settings} onChange={setSettings} />
-
-                <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
-                  className="bg-cyber-surface border border-cyber-border rounded-xl p-4">
-                  <p className="text-xs text-cyber-muted uppercase tracking-widest mb-3">Quick Examples</p>
-                  <div className="space-y-2">
-                    {EXAMPLES.map((ex) => (
-                      <button key={ex.label}
-                        onClick={() => { setInput(ex.value); setResult(null); setBruteForceResult(null); }}
-                        className="w-full text-left p-2.5 rounded-lg border border-cyber-border bg-cyber-card
-                          hover:border-cyber-blue/50 hover:bg-cyber-blue/5 transition-all duration-150 group">
-                        <p className="text-xs text-cyber-blue font-mono group-hover:neon-blue">{ex.label}</p>
-                        <p className="text-xs text-cyber-muted truncate mt-0.5">{ex.value}</p>
-                      </button>
-                    ))}
-                  </div>
+          <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+            <AnimatePresence mode="wait">
+              {activeView === "decoder" && (
+                <DecoderWorkspace
+                  key="decoder"
+                  onInspectorUpdate={setInspectorData}
+                  onLog={addLog}
+                  onClearLogs={clearLogs}
+                />
+              )}
+              {activeView === "stego" && (
+                <motion.div
+                  key="stego"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="h-full"
+                >
+                  <StegoAnalyzer />
                 </motion.div>
+              )}
+              {activeView === "metadata" && (
+                <MetadataWorkspace
+                  key="metadata"
+                  onInspectorUpdate={setInspectorData}
+                  onLog={addLog}
+                  onClearLogs={clearLogs}
+                />
+              )}
+              {activeView === "file" && (
+                <FileAnalyzerWorkspace
+                  key="file"
+                  onInspectorUpdate={setInspectorData}
+                  onLog={addLog}
+                  onClearLogs={clearLogs}
+                />
+              )}
+              {activeView === "experiments" && (
+                <ExperimentsWorkspace
+                  key="experiments"
+                  onLog={addLog}
+                />
+              )}
+              {activeView === "settings" && (
+                <SettingsWorkspace
+                  key="settings"
+                  onLog={addLog}
+                />
+              )}
+            </AnimatePresence>
+          </div>
 
-                {result && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                    className="bg-cyber-surface border border-cyber-border rounded-xl p-4 space-y-3">
-                    <p className="text-xs text-cyber-muted uppercase tracking-widest">Analysis Stats</p>
-                    <div className="grid grid-cols-2 gap-3">
-                      <Stat label="Layers" value={result.steps.length.toString()} color="text-cyber-blue" />
-                      <Stat label="Score" value={`${Math.round(result.total_score * 100)}%`} color="text-cyber-green" />
-                      <Stat label="Flag" value={result.is_ctf_flag ? "YES" : "NO"} color={result.is_ctf_flag ? "text-cyber-green" : "text-cyber-muted"} />
-                      <Stat label="Status" value={result.success ? "OK" : "PARTIAL"} color={result.success ? "text-cyber-green" : "text-amber-400"} />
-                    </div>
-                  </motion.div>
-                )}
-              </div>
-            </motion.div>
-          ) : (
+          {/* Live Analysis Feed - Only show when there are logs */}
+          {logs.length > 0 && (
             <motion.div
-              key="stego"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="p-4 border-t border-white/10 bg-black/40"
             >
-              <StegoAnalyzer />
+              <LiveAnalysisFeed logs={logs} maxHeight="150px" />
             </motion.div>
           )}
-        </AnimatePresence>
-      </main>
+        </div>
 
-      <footer className="border-t border-cyber-border py-4 text-center">
-        <p className="text-xs text-cyber-muted font-mono">
-          AutoDecodeX v1.0.0 — Built for CTF players &amp; cybersecurity students
-        </p>
-      </footer>
+        {/* Right Inspector Panel */}
+        <div className="w-80 flex-shrink-0">
+          <InspectorPanel data={inspectorData} />
+        </div>
+      </div>
     </div>
   );
 }
-
-function Stat({ label, value, color }: { label: string; value: string; color: string }) {
-  return (
-    <div className="bg-cyber-card rounded-lg p-3 border border-cyber-border">
-      <p className="text-xs text-cyber-muted">{label}</p>
-      <p className={`text-sm font-mono font-bold mt-1 ${color}`}>{value}</p>
-    </div>
-  );
-}
-
-const EXAMPLES = [
-  { label: "Base64", value: "SGVsbG8gV29ybGQh" },
-  { label: "Hex", value: "48656c6c6f20576f726c6421" },
-  { label: "ROT13", value: "Uryyb Jbeyq!" },
-  { label: "Binary", value: "01001000 01100101 01101100 01101100 01101111" },
-  { label: "Morse", value: ".... . .-.. .-.. ---" },
-  { label: "Multi-layer (B64→Hex)", value: "NTM2NTZjNmM2ZjIwNTc2ZjcyNmM2NA==" },
-  { label: "URL Encoded", value: "Hello%20World%21" },
-  { label: "CTF Flag (B64)", value: "ZmxhZ3t0ZXN0X2ZsYWd9" },
-];

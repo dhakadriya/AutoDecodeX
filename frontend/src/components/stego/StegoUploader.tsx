@@ -24,7 +24,7 @@ export default function StegoUploader({ onFile, file, onClear, password, onPassw
   }, [onFile]);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 select-none">
       {/* Drop zone */}
       <motion.div
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
@@ -32,12 +32,11 @@ export default function StegoUploader({ onFile, file, onClear, password, onPassw
         onDrop={handleDrop}
         onClick={() => !file && inputRef.current?.click()}
         animate={dragging
-          ? { boxShadow: "0 0 0 2px #00ff88, 0 0 30px rgba(0,255,136,0.3)" }
-          : { boxShadow: "0 0 0 1px #1e1e3a" }
+          ? { borderColor: "var(--accent)", boxShadow: "0 0 0 1px var(--accent), 0 0 12px var(--border-color-glow)" }
+          : { borderColor: "var(--border-color)", boxShadow: "0 0 0 0px transparent" }
         }
-        className={`relative rounded-xl border border-cyber-border bg-cyber-card
-          flex flex-col items-center justify-center gap-3 transition-colors duration-200
-          ${file ? "p-3" : "p-10 cursor-pointer hover:border-cyber-green/50"}`}
+        className={`relative rounded-xl border bg-theme-card flex flex-col items-center justify-center gap-3 transition-colors duration-200
+          ${file ? "p-3" : "p-10 cursor-pointer hover:border-theme-accent/50"}`}
       >
         <input
           ref={inputRef}
@@ -58,19 +57,19 @@ export default function StegoUploader({ onFile, file, onClear, password, onPassw
               <img
                 src={previewUrl}
                 alt="Preview"
-                className="w-full max-h-48 object-contain rounded-lg border border-cyber-border"
+                className="w-full max-h-48 object-contain rounded-lg border border-theme-border"
               />
               <button
                 onClick={(e) => { e.stopPropagation(); onClear(); }}
-                className="absolute top-2 right-2 w-6 h-6 rounded-full bg-cyber-surface border border-cyber-border
-                  flex items-center justify-center text-cyber-muted hover:text-red-400 transition-colors"
+                className="absolute top-2 right-2 w-6 h-6 rounded-full bg-theme-surface border border-theme-border
+                  flex items-center justify-center text-theme-muted hover:text-theme-error transition-colors"
               >
                 <X size={12} />
               </button>
               <div className="mt-2 flex items-center gap-2 px-1">
-                <ImageIcon size={12} className="text-cyber-green" />
-                <span className="text-xs text-cyber-muted font-mono truncate">{file.name}</span>
-                <span className="text-xs text-cyber-muted ml-auto">
+                <ImageIcon size={12} className="text-theme-success" />
+                <span className="text-xs text-theme-secondary font-mono truncate">{file.name}</span>
+                <span className="text-xs text-theme-muted ml-auto">
                   {(file.size / 1024).toFixed(1)} KB
                 </span>
               </div>
@@ -83,15 +82,14 @@ export default function StegoUploader({ onFile, file, onClear, password, onPassw
               className="flex flex-col items-center gap-3 text-center"
             >
               <motion.div
-                animate={dragging ? { scale: 1.2, color: "#00ff88" } : { scale: 1 }}
-                className="w-12 h-12 rounded-xl border border-cyber-border bg-cyber-surface
-                  flex items-center justify-center text-cyber-muted"
+                animate={dragging ? { scale: 1.1, color: "var(--accent)" } : { scale: 1 }}
+                className="w-12 h-12 rounded-xl border border-theme-border bg-theme-input flex items-center justify-center text-theme-muted"
               >
                 <Upload size={20} />
               </motion.div>
               <div>
-                <p className="text-sm text-cyber-text font-mono">Drop image here</p>
-                <p className="text-xs text-cyber-muted mt-1">PNG · JPEG · BMP · WebP · max 10MB</p>
+                <p className="text-sm text-theme-primary font-mono">Drop image here</p>
+                <p className="text-xs text-theme-muted mt-1 font-mono">PNG · JPEG · BMP · WebP</p>
               </div>
             </motion.div>
           )}
@@ -99,14 +97,14 @@ export default function StegoUploader({ onFile, file, onClear, password, onPassw
       </motion.div>
 
       {/* Password field */}
-      <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-cyber-border bg-cyber-card">
-        <Lock size={12} className="text-cyber-muted shrink-0" />
+      <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-theme-border bg-theme-input">
+        <Lock size={12} className="text-theme-muted shrink-0" />
         <input
           type="text"
           value={password}
           onChange={(e) => onPasswordChange(e.target.value)}
           placeholder="Password (optional)"
-          className="flex-1 bg-transparent text-xs font-mono text-cyber-text outline-none placeholder-cyber-muted"
+          className="flex-1 bg-transparent text-xs font-mono text-theme-primary outline-none placeholder-theme-muted"
         />
       </div>
     </div>

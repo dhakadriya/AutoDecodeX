@@ -13,7 +13,7 @@ from backend.decoders.decoders import DECODERS, CaesarDecoder, XORDecoder
 from backend.scoring.scorer import score_text
 
 MAX_DEPTH = 10
-SCORE_THRESHOLD = 0.75
+SCORE_THRESHOLD = 0.60  # Lowered to catch more valid decodings
 TOP_DETECTIONS = 3  # Try top N detected encodings per step
 
 
@@ -50,24 +50,40 @@ def _text_hash(text: str) -> str:
     return hashlib.md5(text.encode('utf-8', errors='replace')).hexdigest()
 
 
-def decode(input_text: str, ctf_mode: bool = False) -> DecodingResult:
+def decode(
+    input_text: str,
+    ctf_mode: bool = False,
+    confidence_threshold: float = None,
+    max_depth: int = None
+) -> DecodingResult:
     """
     Main entry point. Runs BFS over possible decoding paths.
     Returns the best result found.
     """
     input_text = input_text.strip()
+    
+    depth_limit = max_depth if max_depth is not None else MAX_DEPTH
+    threshold = confidence_threshold if confidence_threshold is not None else SCORE_THRESHOLD
+
     initial_score = score_text(input_text)
 
-    # If already readable, return as-is
-    if initial_score >= SCORE_THRESHOLD:
-        return DecodingResult(
-            success=True,
-            final_output=input_text,
-            steps=[],
-            total_score=initial_score,
-            path_description="Input appears to already be plaintext.",
-            is_ctf_flag=_is_flag(input_text),
-        )
+    # Check if already readable AND no high-confidence detections
+    if initial_score >= threshold:
+        detections = detect_all(input_text)
+        if ctf_mode:
+            detections = _boost_ctf(detections)
+        
+        has_high_conf = any(d['confidence'] >= 0.75 for d in detections)
+        
+        if not has_high_conf:
+            return DecodingResult(
+                success=True,
+                final_output=input_text,
+                steps=[],
+                total_score=initial_score,
+                path_description="Input appears to already be plaintext.",
+                is_ctf_flag=_is_flag(input_text),
+            )
 
     initial_hash = _text_hash(input_text)
     queue: list[_Node] = [_Node(
@@ -83,12 +99,11 @@ def decode(input_text: str, ctf_mode: bool = False) -> DecodingResult:
     while queue:
         node = queue.pop(0)  # BFS
 
-        if node.depth >= MAX_DEPTH:
+        if node.depth >= depth_limit:
             continue
 
         detections = detect_all(node.text)
 
-        # In CTF mode, boost common CTF encodings
         if ctf_mode:
             detections = _boost_ctf(detections)
 
@@ -97,8 +112,12 @@ def decode(input_text: str, ctf_mode: bool = False) -> DecodingResult:
             enc_type = detection['type']
             confidence = detection['confidence']
 
-            # Skip brute-force types in main loop (handled separately)
+            # Skip brute-force types in main loop
             if enc_type in ('caesar', 'xor'):
+                continue
+
+            # Skip hash types during decoding (hashes cannot be decoded)
+            if enc_type in ('md5', 'sha1', 'sha224', 'sha256', 'sha384', 'sha512'):
                 continue
 
             decoder = DECODERS.get(enc_type)
@@ -126,7 +145,7 @@ def decode(input_text: str, ctf_mode: bool = False) -> DecodingResult:
             new_hashes = node.visited_hashes | {decoded_hash}
 
             result = DecodingResult(
-                success=new_score >= SCORE_THRESHOLD or _is_flag(decoded),
+                success=new_score >= threshold or _is_flag(decoded),
                 final_output=decoded,
                 steps=new_steps,
                 total_score=new_score,
@@ -139,7 +158,7 @@ def decode(input_text: str, ctf_mode: bool = False) -> DecodingResult:
                 best = result
 
             if result.success:
-                return result  # Early exit on high-confidence result
+                return result  # Early exit
 
             # Continue exploring
             queue.append(_Node(
@@ -150,8 +169,42 @@ def decode(input_text: str, ctf_mode: bool = False) -> DecodingResult:
                 visited_hashes=new_hashes,
             ))
 
+    # If we have a best result and it's readable, return it
+    if best and best.total_score >= threshold:
+        return best
+
+    # If the best result is not readable, check if the input itself was a hash
+    final_detections = detect_all(input_text)
+    if final_detections and final_detections[0]['type'] in ('md5', 'sha1', 'sha224', 'sha256', 'sha384', 'sha512'):
+        hash_type = final_detections[0]['type']
+        return DecodingResult(
+            success=True,
+            final_output=f"[{hash_type.upper()} Hash] {input_text}",
+            steps=[DecodingStep(
+                step_number=1,
+                encoding_type=hash_type,
+                confidence=final_detections[0]['confidence'],
+                input_text=input_text,
+                output_text=f"[{hash_type.upper()} Hash] {input_text}",
+                score=0.99
+            )],
+            total_score=0.99,
+            path_description=f"{hash_type.upper()} Hash Detected",
+            is_ctf_flag=False
+        )
+
+    # Otherwise return best (even if low score) or the original input
     if best:
         return best
+
+    # Nothing worked — return original with no steps
+    return DecodingResult(
+        success=False,
+        final_output=input_text,
+        steps=[],
+        total_score=initial_score,
+        path_description="No encoding detected or decoding failed.",
+    )
 
     # Nothing worked — return original with no steps
     return DecodingResult(

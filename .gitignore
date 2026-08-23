@@ -1,4 +1,4 @@
-# Python
+# Python cache and distribution
 __pycache__/
 *.py[cod]
 *.pyo
@@ -11,22 +11,27 @@ build/
 venv/
 env/
 *.egg
+.pytest_cache/
+.coverage
+htmlcov/
+scratch/
 
-# Node
+# Node dependencies and builds
+node_modules/
 frontend/node_modules/
 frontend/.next/
 frontend/out/
 frontend/.env*.local
 
-# Environment
+# Environment files
 .env
 .env.local
 
-# OS
+# OS leftovers
 .DS_Store
 Thumbs.db
 
-# IDE
-.vscode/settings.json
+# IDE settings
+.vscode/
 .idea/
 *.swp

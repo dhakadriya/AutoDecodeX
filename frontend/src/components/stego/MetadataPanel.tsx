@@ -16,7 +16,7 @@ function CopyBtn({ text }: { text: string }) {
   return (
     <button
       onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-      className="flex items-center gap-1 text-xs text-cyber-muted hover:text-cyber-blue transition-colors shrink-0"
+      className="flex items-center gap-1 text-xs text-theme-muted hover:text-theme-accent transition-colors shrink-0 font-mono"
     >
       <Copy size={10} />
       {copied ? "✓" : ""}
@@ -34,17 +34,17 @@ function Collapsible({ title, icon: Icon, iconColor, badge, children, defaultOpe
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="rounded-xl border border-cyber-border bg-cyber-card overflow-hidden">
+    <div className="rounded-xl border border-theme-border bg-theme-card overflow-hidden">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-3 px-4 py-3 bg-cyber-surface hover:bg-cyber-card transition-colors"
+        className="w-full flex items-center gap-3 px-4 py-3 bg-theme-surface hover:bg-theme-hover transition-colors"
       >
         <Icon size={13} className={iconColor} />
-        <span className="text-xs font-mono text-cyber-muted uppercase tracking-widest flex-1 text-left">{title}</span>
+        <span className="text-xs font-mono text-theme-secondary uppercase tracking-widest flex-1 text-left">{title}</span>
         {badge !== undefined && (
-          <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-cyber-border text-cyber-muted">{badge}</span>
+          <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-theme-input text-theme-secondary border border-theme-border">{badge}</span>
         )}
-        {open ? <ChevronUp size={13} className="text-cyber-muted" /> : <ChevronDown size={13} className="text-cyber-muted" />}
+        {open ? <ChevronUp size={13} className="text-theme-secondary" /> : <ChevronDown size={13} className="text-theme-secondary" />}
       </button>
       <AnimatePresence>
         {open && (
@@ -55,7 +55,7 @@ function Collapsible({ title, icon: Icon, iconColor, badge, children, defaultOpe
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="p-4">{children}</div>
+            <div className="p-4 bg-theme-card">{children}</div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -65,9 +65,9 @@ function Collapsible({ title, icon: Icon, iconColor, badge, children, defaultOpe
 
 function FieldRow({ k, v }: { k: string; v: string }) {
   return (
-    <div className="flex items-start gap-3 py-1.5 border-b border-cyber-border/50 last:border-0">
-      <span className="text-xs text-cyber-muted font-mono w-40 shrink-0 truncate">{k}</span>
-      <span className="text-xs text-cyber-text font-mono flex-1 break-all">{v}</span>
+    <div className="flex items-start gap-3 py-1.5 border-b border-theme-border/50 last:border-0">
+      <span className="text-xs text-theme-secondary font-mono w-40 shrink-0 truncate">{k}</span>
+      <span className="text-xs text-theme-primary font-mono flex-1 break-all">{v}</span>
       <CopyBtn text={v} />
     </div>
   );
@@ -77,11 +77,11 @@ function FindingCard({ finding, index }: { finding: MetadataFinding; index: numb
   const [expanded, setExpanded] = useState(finding.flags.length > 0 || !!finding.decode_result);
   const hasFlag = finding.flags.length > 0 || finding.decode_result?.is_ctf_flag;
   const borderColor = hasFlag
-    ? "border-cyber-green/60"
+    ? "border-theme-success/40"
     : finding.entropy > 4.5
-    ? "border-red-500/40"
-    : "border-amber-400/40";
-  const bgColor = hasFlag ? "bg-cyber-green/5" : "bg-cyber-card";
+    ? "border-theme-error/40"
+    : "border-theme-warning/40";
+  const bgColor = hasFlag ? "bg-theme-success/5" : "bg-theme-card";
 
   return (
     <motion.div
@@ -96,27 +96,27 @@ function FindingCard({ finding, index }: { finding: MetadataFinding; index: numb
         className="w-full flex items-center gap-3 px-3 py-2.5 text-left"
       >
         {hasFlag
-          ? <Flag size={12} className="text-cyber-green shrink-0" />
-          : <AlertTriangle size={12} className="text-amber-400 shrink-0" />
+          ? <Flag size={12} className="text-theme-success shrink-0" />
+          : <AlertTriangle size={12} className="text-theme-warning shrink-0" />
         }
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-mono text-cyber-blue">{finding.field}</span>
-            <span className="text-xs text-cyber-muted">({finding.section})</span>
+            <span className="text-xs font-mono text-theme-accent font-bold">{finding.field}</span>
+            <span className="text-xs text-theme-secondary font-mono">({finding.section})</span>
             {finding.encoding && "type" in finding.encoding && (
-              <span className="text-xs px-1.5 py-0.5 rounded bg-cyber-purple/20 text-cyber-purple font-mono">
+              <span className="text-xs px-1.5 py-0.5 rounded bg-theme-accent/10 text-theme-accent font-mono border border-theme-accent/15">
                 {finding.encoding.type} {Math.round((finding.encoding.confidence ?? 0) * 100)}%
               </span>
             )}
             {hasFlag && (
-              <span className="text-xs px-1.5 py-0.5 rounded bg-cyber-green/20 text-cyber-green font-mono">FLAG</span>
+              <span className="text-xs px-1.5 py-0.5 rounded bg-theme-success/15 text-theme-success font-mono border border-theme-success/20">FLAG</span>
             )}
           </div>
-          <p className="text-xs text-cyber-muted truncate mt-0.5">{finding.raw_value.slice(0, 60)}</p>
+          <p className="text-xs text-theme-secondary font-mono truncate mt-0.5">{finding.raw_value.slice(0, 60)}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <span className="text-xs text-cyber-muted font-mono">H:{finding.entropy.toFixed(2)}</span>
-          {expanded ? <ChevronUp size={12} className="text-cyber-muted" /> : <ChevronDown size={12} className="text-cyber-muted" />}
+          <span className="text-xs text-theme-secondary font-mono">H:{finding.entropy.toFixed(2)}</span>
+          {expanded ? <ChevronUp size={12} className="text-theme-secondary" /> : <ChevronDown size={12} className="text-theme-secondary" />}
         </div>
       </button>
 
@@ -128,23 +128,23 @@ function FindingCard({ finding, index }: { finding: MetadataFinding; index: numb
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="overflow-hidden border-t border-cyber-border/50"
+            className="overflow-hidden border-t border-theme-border/50"
           >
             <div className="p-3 space-y-2">
               {/* Raw value */}
-              <div className="bg-cyber-surface rounded p-2 border border-cyber-border">
+              <div className="bg-theme-input rounded p-2 border border-theme-border">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs text-cyber-muted">Raw Value</span>
+                  <span className="text-xs text-theme-secondary font-mono">Raw Value</span>
                   <CopyBtn text={finding.raw_value} />
                 </div>
-                <p className="text-xs font-mono text-cyber-text break-all">{finding.raw_value.slice(0, 300)}</p>
+                <p className="text-xs font-mono text-theme-primary break-all">{finding.raw_value.slice(0, 300)}</p>
               </div>
 
               {/* Suspicious reasons */}
               {finding.suspicious_reasons.length > 0 && (
                 <div className="flex flex-wrap gap-1">
                   {finding.suspicious_reasons.map((r, i) => (
-                    <span key={i} className="text-xs px-2 py-0.5 rounded-full bg-amber-400/10 border border-amber-400/30 text-amber-400 font-mono">
+                    <span key={i} className="text-xs px-2 py-0.5 rounded-full bg-theme-warning/10 border border-theme-warning/30 text-theme-warning font-mono">
                       {r}
                     </span>
                   ))}
@@ -155,9 +155,9 @@ function FindingCard({ finding, index }: { finding: MetadataFinding; index: numb
               {finding.flags.length > 0 && (
                 <div className="space-y-1">
                   {finding.flags.map((f, i) => (
-                    <div key={i} className="flex items-center gap-2 px-2 py-1.5 rounded bg-cyber-green/10 border border-cyber-green/40">
-                      <Flag size={11} className="text-cyber-green shrink-0" />
-                      <span className="text-xs font-mono text-cyber-green neon-green flex-1">{f}</span>
+                    <div key={i} className="flex items-center gap-2 px-2 py-1.5 rounded bg-theme-success/10 border border-theme-success/30">
+                      <Flag size={11} className="text-theme-success shrink-0" />
+                      <span className="text-xs font-mono text-theme-success font-bold flex-1">{f}</span>
                       <CopyBtn text={f} />
                     </div>
                   ))}
@@ -166,13 +166,13 @@ function FindingCard({ finding, index }: { finding: MetadataFinding; index: numb
 
               {/* Decode result */}
               {finding.decode_result && (
-                <div className="bg-cyber-surface rounded p-2 border border-cyber-border space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-cyber-muted">{finding.decode_result.path_description}</span>
-                    <span className="text-xs text-cyber-yellow">{Math.round(finding.decode_result.total_score * 100)}%</span>
+                <div className="bg-theme-input rounded p-2.5 border border-theme-border space-y-1">
+                  <div className="flex items-center justify-between font-mono">
+                    <span className="text-xs text-theme-secondary">{finding.decode_result.path_description}</span>
+                    <span className="text-xs text-theme-warning font-bold">{Math.round(finding.decode_result.total_score * 100)}%</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <p className={`text-xs font-mono break-all flex-1 ${finding.decode_result.is_ctf_flag ? "text-cyber-green neon-green" : "text-cyber-text"}`}>
+                    <p className={`text-xs font-mono break-all flex-1 ${finding.decode_result.is_ctf_flag ? "text-theme-success font-bold" : "text-theme-primary"}`}>
                       {finding.decode_result.final_output}
                     </p>
                     <CopyBtn text={finding.decode_result.final_output} />
@@ -180,7 +180,7 @@ function FindingCard({ finding, index }: { finding: MetadataFinding; index: numb
                   {finding.decode_result.steps.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-1">
                       {finding.decode_result.steps.map((s) => (
-                        <span key={s.step_number} className="text-xs font-mono text-cyber-purple">
+                        <span key={s.step_number} className="text-xs font-mono text-theme-accent">
                           {s.encoding_type.toUpperCase()}({Math.round(s.confidence * 100)}%)
                           {s.step_number < finding.decode_result!.steps.length ? " →" : ""}
                         </span>
@@ -206,17 +206,17 @@ export default function MetadataPanel({ data }: Props) {
       <motion.div
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="grid grid-cols-2 sm:grid-cols-4 gap-3"
+        className="grid grid-cols-2 sm:grid-cols-4 gap-3 select-none"
       >
         {[
-          { label: "Fields Scanned", value: summary.total_fields, color: "text-cyber-blue" },
-          { label: "Suspicious", value: summary.suspicious_fields, color: summary.suspicious_fields > 0 ? "text-amber-400" : "text-cyber-green" },
-          { label: "Flags Found", value: summary.flags_found.length, color: summary.flags_found.length > 0 ? "text-cyber-green" : "text-cyber-muted" },
-          { label: "Embedded Files", value: summary.embedded_files_count, color: summary.embedded_files_count > 0 ? "text-red-400" : "text-cyber-muted" },
+          { label: "Fields Scanned", value: summary.total_fields, color: "text-theme-accent" },
+          { label: "Suspicious", value: summary.suspicious_fields, color: summary.suspicious_fields > 0 ? "text-theme-warning" : "text-theme-success" },
+          { label: "Flags Found", value: summary.flags_found.length, color: summary.flags_found.length > 0 ? "text-theme-success" : "text-theme-muted" },
+          { label: "Embedded Files", value: summary.embedded_files_count, color: summary.embedded_files_count > 0 ? "text-theme-error" : "text-theme-muted" },
         ].map((s) => (
-          <div key={s.label} className="bg-cyber-card border border-cyber-border rounded-lg p-3 text-center">
+          <div key={s.label} className="bg-theme-surface border border-theme-border rounded-lg p-3 text-center">
             <p className={`text-lg font-bold font-mono ${s.color}`}>{s.value}</p>
-            <p className="text-xs text-cyber-muted mt-0.5">{s.label}</p>
+            <p className="text-xs text-theme-secondary mt-0.5 font-mono">{s.label}</p>
           </div>
         ))}
       </motion.div>
@@ -224,19 +224,19 @@ export default function MetadataPanel({ data }: Props) {
       {/* Flags banner */}
       {summary.flags_found.length > 0 && (
         <motion.div
-          animate={{ boxShadow: ["0 0 10px rgba(0,255,136,0.2)", "0 0 25px rgba(0,255,136,0.4)", "0 0 10px rgba(0,255,136,0.2)"] }}
+          animate={{ boxShadow: ["0 0 10px rgba(16,185,129,0.15)", "0 0 20px rgba(16,185,129,0.3)", "0 0 10px rgba(16,185,129,0.15)"] }}
           transition={{ duration: 2, repeat: Infinity }}
-          className="p-4 rounded-xl border border-cyber-green/60 bg-cyber-green/10 space-y-2"
+          className="p-4 rounded-xl border border-theme-success/40 bg-theme-success/10 space-y-2 select-none"
         >
           <div className="flex items-center gap-2">
-            <Flag size={14} className="text-cyber-green" />
-            <span className="text-sm font-mono font-bold text-cyber-green">
+            <Flag size={14} className="text-theme-success" />
+            <span className="text-sm font-mono font-bold text-theme-success">
               {summary.flags_found.length} FLAG{summary.flags_found.length > 1 ? "S" : ""} FOUND IN METADATA
             </span>
           </div>
           {summary.flags_found.map((f, i) => (
             <div key={i} className="flex items-center gap-2">
-              <span className="text-sm font-mono text-cyber-green neon-green flex-1">{f}</span>
+              <span className="text-sm font-mono text-theme-success font-bold flex-1">{f}</span>
               <CopyBtn text={f} />
             </div>
           ))}
@@ -248,7 +248,7 @@ export default function MetadataPanel({ data }: Props) {
         <Collapsible
           title={`Suspicious Fields (${analysis.findings.length})`}
           icon={AlertTriangle}
-          iconColor="text-amber-400"
+          iconColor="text-theme-warning"
           badge={analysis.findings.length}
           defaultOpen={true}
         >
@@ -261,8 +261,8 @@ export default function MetadataPanel({ data }: Props) {
       )}
 
       {/* File info */}
-      <Collapsible title="File Information" icon={Database} iconColor="text-cyber-blue" defaultOpen={true}>
-        <div className="divide-y divide-cyber-border/30">
+      <Collapsible title="File Information" icon={Database} iconColor="text-theme-accent" defaultOpen={true}>
+        <div className="divide-y divide-theme-border/55">
           {Object.entries(metadata.file_info).map(([k, v]) => (
             <FieldRow key={k} k={k} v={String(v)} />
           ))}
@@ -277,10 +277,10 @@ export default function MetadataPanel({ data }: Props) {
         <Collapsible
           title="EXIF Data"
           icon={Database}
-          iconColor="text-cyber-purple"
+          iconColor="text-theme-accent"
           badge={Object.keys(metadata.exif).length}
         >
-          <div className="divide-y divide-cyber-border/30">
+          <div className="divide-y divide-theme-border/55">
             {Object.entries(metadata.exif).map(([k, v]) => (
               <FieldRow key={k} k={k} v={v} />
             ))}
@@ -293,11 +293,11 @@ export default function MetadataPanel({ data }: Props) {
         <Collapsible
           title="PNG Text Chunks"
           icon={FileSearch}
-          iconColor="text-cyber-green"
+          iconColor="text-theme-success"
           badge={Object.keys(metadata.png_text).length}
           defaultOpen={true}
         >
-          <div className="divide-y divide-cyber-border/30">
+          <div className="divide-y divide-theme-border/55">
             {Object.entries(metadata.png_text).map(([k, v]) => (
               <FieldRow key={k} k={k} v={v} />
             ))}
@@ -307,8 +307,8 @@ export default function MetadataPanel({ data }: Props) {
 
       {/* GPS */}
       {Object.keys(metadata.gps).length > 0 && (
-        <Collapsible title="GPS Data" icon={Database} iconColor="text-amber-400" badge={Object.keys(metadata.gps).length}>
-          <div className="divide-y divide-cyber-border/30">
+        <Collapsible title="GPS Data" icon={Database} iconColor="text-theme-warning" badge={Object.keys(metadata.gps).length}>
+          <div className="divide-y divide-theme-border/55">
             {Object.entries(metadata.gps).map(([k, v]) => (
               <FieldRow key={k} k={k} v={v} />
             ))}
@@ -318,8 +318,8 @@ export default function MetadataPanel({ data }: Props) {
 
       {/* PIL info */}
       {Object.keys(metadata.pil_info).length > 0 && (
-        <Collapsible title="Additional Info" icon={Database} iconColor="text-cyber-muted" badge={Object.keys(metadata.pil_info).length}>
-          <div className="divide-y divide-cyber-border/30">
+        <Collapsible title="Additional Info" icon={Database} iconColor="text-theme-muted" badge={Object.keys(metadata.pil_info).length}>
+          <div className="divide-y divide-theme-border/55">
             {Object.entries(metadata.pil_info).map(([k, v]) => (
               <FieldRow key={k} k={k} v={v} />
             ))}
@@ -332,7 +332,7 @@ export default function MetadataPanel({ data }: Props) {
         <Collapsible
           title={`Embedded Files Detected (${embedded_files.length})`}
           icon={Package}
-          iconColor="text-red-400"
+          iconColor="text-theme-error"
           badge={embedded_files.length}
           defaultOpen={true}
         >
@@ -343,17 +343,17 @@ export default function MetadataPanel({ data }: Props) {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: i * 0.05 }}
-                className="p-3 rounded-lg border border-red-500/30 bg-red-500/5 space-y-1"
+                className="p-3 rounded-lg border border-theme-error/30 bg-theme-error/5 space-y-1"
               >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-mono text-red-400 font-semibold">{ef.file_type}</span>
-                  <span className="text-xs font-mono text-cyber-muted">@ {ef.offset_hex}</span>
+                <div className="flex items-center justify-between font-mono">
+                  <span className="text-xs text-theme-error font-bold">{ef.file_type}</span>
+                  <span className="text-xs text-theme-secondary">offset: {ef.offset_hex}</span>
                 </div>
-                <p className="text-xs font-mono text-cyber-muted">
-                  Signature: <span className="text-cyber-text">{ef.signature_hex}</span>
+                <p className="text-xs font-mono text-theme-secondary">
+                  Signature: <span className="text-theme-primary">{ef.signature_hex}</span>
                 </p>
-                <p className="text-xs font-mono text-cyber-muted truncate">
-                  Context: <span className="text-cyber-text">{ef.context}</span>
+                <p className="text-xs font-mono text-theme-secondary truncate">
+                  Context: <span className="text-theme-primary">{ef.context}</span>
                 </p>
               </motion.div>
             ))}
