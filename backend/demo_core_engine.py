@@ -1,9 +1,15 @@
-"""
-AutoDecodeX Core Engine Demonstration
+import sys
+import os
 
-This script demonstrates the capabilities of the core decoding engine.
-Run: python demo_core_engine.py
-"""
+# Ensure backend package is importable when running directly
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+# Force UTF-8 encoding for standard output/error stream to prevent encoding errors on Windows
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8")
+
 from backend.engine.orchestrator import decode, brute_force_caesar, brute_force_xor
 from backend.detectors.detector import detect_all
 from backend.scoring.scorer import score_text

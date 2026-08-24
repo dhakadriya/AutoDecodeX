@@ -3,6 +3,7 @@ import { useState, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
 import { FileSearch, Upload, Hash, Copy } from "lucide-react";
 import type { LogEntry } from "@/components/layout/LiveAnalysisFeed";
+import { fileAnalyze } from "@/lib/api";
 
 interface FileAnalyzerWorkspaceProps {
   onInspectorUpdate: (data: any) => void;
@@ -33,130 +34,34 @@ export default function FileAnalyzerWorkspace({
   const [dragActive, setDragActive] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const calculateHashes = async (buffer: ArrayBuffer): Promise<{ sha256: string; md5: string }> => {
-    const hashBuffer = async (algorithm: string, data: ArrayBuffer) => {
-      const hashBuffer = await crypto.subtle.digest(algorithm, data);
-      return Array.from(new Uint8Array(hashBuffer))
-        .map(b => b.toString(16).padStart(2, "0"))
-        .join("");
-    };
-
-    const [sha256, md5] = await Promise.all([
-      hashBuffer("SHA-256", buffer),
-      hashBuffer("SHA-1", buffer), // WebCrypto doesn't support MD5, using SHA-1 as fallback
-    ]);
-
-    return { sha256, md5 };
-  };
-
-  const calculateEntropy = (buffer: ArrayBuffer): number => {
-    const bytes = new Uint8Array(buffer);
-    const freq: Record<number, number> = {};
-    
-    for (let i = 0; i < bytes.length; i++) {
-      const byte = bytes[i];
-      freq[byte] = (freq[byte] || 0) + 1;
-    }
-
-    let entropy = 0;
-    const len = bytes.length;
-
-    for (const count of Object.values(freq)) {
-      const p = count / len;
-      entropy -= p * Math.log2(p);
-    }
-
-    return entropy;
-  };
-
-  const extractStrings = (buffer: ArrayBuffer, minLength: number = 4): string[] => {
-    const bytes = new Uint8Array(buffer);
-    const strings: string[] = [];
-    let current = "";
-
-    for (let i = 0; i < bytes.length; i++) {
-      const byte = bytes[i];
-      if (byte >= 32 && byte <= 126) {
-        current += String.fromCharCode(byte);
-      } else {
-        if (current.length >= minLength) {
-          strings.push(current);
-        }
-        current = "";
-      }
-    }
-
-    if (current.length >= minLength) {
-      strings.push(current);
-    }
-
-    return strings.slice(0, 100); // Limit to first 100 strings
-  };
-
-  const getMagicBytes = (buffer: ArrayBuffer): string => {
-    const bytes = new Uint8Array(buffer);
-    return Array.from(bytes.slice(0, 16))
-      .map(b => b.toString(16).padStart(2, "0"))
-      .join(" ")
-      .toUpperCase();
-  };
-
   const analyzeFile = useCallback(async (fileToAnalyze: File) => {
     setLoading(true);
     onClearLogs();
-    onLog("info", `Analyzing ${fileToAnalyze.name}...`);
+    onLog("info", `Uploading and analyzing ${fileToAnalyze.name} via backend...`);
 
     try {
-      const buffer = await fileToAnalyze.arrayBuffer();
-
-      onLog("info", "Calculating SHA-256 hash...");
-      onLog("info", "Calculating MD5 hash...");
-      const { sha256, md5 } = await calculateHashes(buffer);
-
-      onLog("info", "Calculating entropy...");
-      const entropy = calculateEntropy(buffer);
-
-      onLog("info", "Extracting strings...");
-      const strings = extractStrings(buffer);
-
-      onLog("info", "Reading magic bytes...");
-      const magicBytes = getMagicBytes(buffer);
-
-      const bytes = new Uint8Array(buffer);
-      const printable = Array.from(bytes).filter(b => b >= 32 && b <= 126).length;
-      const printableRatio = (printable / bytes.length) * 100;
-
-      const result: FileAnalysis = {
-        name: fileToAnalyze.name,
-        size: fileToAnalyze.size,
-        type: fileToAnalyze.type || "Unknown",
-        sha256,
-        md5,
-        entropy,
-        strings,
-        printableRatio,
-        magicBytes,
-      };
+      onLog("info", "Uploading evidence file to secure sandbox...");
+      const result = await fileAnalyze(fileToAnalyze);
 
       setAnalysis(result);
       onLog("success", "Analysis complete");
 
-      if (entropy > 7.5) {
+      if (result.entropy > 7.5) {
         onLog("warning", "⚠️ High entropy detected - possible encryption or compression");
       }
 
-      if (printableRatio < 10) {
+      if (result.printableRatio < 10) {
         onLog("warning", "⚠️ Low printable ratio - likely binary file");
       }
 
       onInspectorUpdate({
-        fileName: fileToAnalyze.name,
-        fileSize: fileToAnalyze.size,
-        entropy: entropy.toFixed(3),
-        sha256: sha256.slice(0, 16) + "...",
-        stringsFound: strings.length,
-        printableRatio: printableRatio.toFixed(1) + "%",
-        riskLevel: entropy > 7.5 ? "high" : entropy > 6 ? "medium" : "low",
+        fileName: result.name,
+        fileSize: result.size,
+        entropy: result.entropy.toFixed(3),
+        sha256: result.sha256.slice(0, 16) + "...",
+        stringsFound: result.strings.length,
+        printableRatio: result.printableRatio.toFixed(1) + "%",
+        riskLevel: result.entropy > 7.5 ? "high" : result.entropy > 6 ? "medium" : "low",
       });
     } catch (error) {
       onLog("error", `Analysis failed: ${error instanceof Error ? error.message : "Unknown error"}`);

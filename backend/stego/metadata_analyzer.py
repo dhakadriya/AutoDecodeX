@@ -141,68 +141,224 @@ def _normalize(val: Any) -> str:
     return str(val).strip()
 
 
+# ── Custom metadata extractors for non-image formats ────────────────────────
+def _extract_zip_metadata(file_bytes: bytes) -> dict:
+    import zipfile
+    try:
+        with zipfile.ZipFile(io.BytesIO(file_bytes)) as z:
+            info_list = z.infolist()
+            total_uncompressed = sum(info.file_size for info in info_list)
+            total_compressed = sum(info.compress_size for info in info_list)
+            comment = z.comment.decode("utf-8", errors="ignore")
+
+            file_info = {
+                "format": "ZIP Archive",
+                "size_bytes": len(file_bytes),
+                "size_kb": round(len(file_bytes) / 1024, 2),
+                "files_count": len(info_list),
+                "total_uncompressed_size": total_uncompressed,
+                "total_compressed_size": total_compressed,
+                "compression_ratio": round(total_uncompressed / total_compressed if total_compressed > 0 else 1.0, 2),
+            }
+
+            pil_info = {}
+            if comment:
+                pil_info["ZIP Comment"] = comment
+
+            exif = {}
+            for idx, info in enumerate(info_list[:30]):
+                exif[f"ArchiveFile_{idx}"] = f"{info.filename} ({info.file_size} bytes)"
+
+            return {
+                "file_info": file_info,
+                "exif": exif,
+                "gps": {},
+                "png_text": {},
+                "pil_info": pil_info,
+                "raw_exif": exif,
+            }
+    except Exception as e:
+        return {
+            "file_info": {"format": "ZIP Archive (Corrupted)", "size_bytes": len(file_bytes)},
+            "exif": {"Error": str(e)}, "gps": {}, "png_text": {}, "pil_info": {}, "raw_exif": {}
+        }
+
+
+def _extract_wav_metadata(file_bytes: bytes) -> dict:
+    import wave
+    try:
+        with wave.open(io.BytesIO(file_bytes), "rb") as w:
+            n_channels = w.getnchannels()
+            samp_width = w.getsampwidth()
+            framerate = w.getframerate()
+            n_frames = w.getnframes()
+            duration = n_frames / framerate if framerate > 0 else 0.0
+
+            file_info = {
+                "format": "WAV Audio",
+                "size_bytes": len(file_bytes),
+                "size_kb": round(len(file_bytes) / 1024, 2),
+                "channels": n_channels,
+                "sample_width_bytes": samp_width,
+                "sample_rate_hz": framerate,
+                "total_frames": n_frames,
+                "duration_seconds": round(duration, 2),
+            }
+
+            exif = {
+                "Channels": str(n_channels),
+                "Sample Rate": f"{framerate} Hz",
+                "Duration": f"{duration:.2f} seconds",
+                "Bits per Sample": str(samp_width * 8),
+            }
+
+            return {
+                "file_info": file_info,
+                "exif": exif,
+                "gps": {},
+                "png_text": {},
+                "pil_info": {},
+                "raw_exif": exif,
+            }
+    except Exception as e:
+        return {
+            "file_info": {"format": "WAV Audio (Corrupted)", "size_bytes": len(file_bytes)},
+            "exif": {"Error": str(e)}, "gps": {}, "png_text": {}, "pil_info": {}, "raw_exif": {}
+        }
+
+
+def _extract_pdf_metadata(file_bytes: bytes) -> dict:
+    try:
+        text = file_bytes.decode("latin-1", errors="ignore")
+
+        file_info = {
+            "format": "PDF Document",
+            "size_bytes": len(file_bytes),
+            "size_kb": round(len(file_bytes) / 1024, 2),
+        }
+
+        exif = {}
+        keys = ["Title", "Author", "Subject", "Keywords", "Creator", "Producer", "CreationDate", "ModDate"]
+        for key in keys:
+            match = re.search(r"/" + key + r"\s*\(([^)]+)\)", text)
+            if match:
+                exif[key] = match.group(1).strip()
+            else:
+                match_hex = re.search(r"/" + key + r"\s*<([0-9a-fA-F]+)>", text)
+                if match_hex:
+                    try:
+                        exif[key] = bytes.fromhex(match_hex.group(1)).decode("utf-8", errors="ignore").strip()
+                    except Exception:
+                        exif[key] = match_hex.group(1)
+
+        ver_match = re.match(r"^%PDF-\d\.\d", text)
+        if ver_match:
+            file_info["pdf_version"] = ver_match.group(0)[5:]
+            exif["PDF Version"] = ver_match.group(0)[5:]
+
+        return {
+            "file_info": file_info,
+            "exif": exif,
+            "gps": {},
+            "png_text": {},
+            "pil_info": {},
+            "raw_exif": exif,
+        }
+    except Exception as e:
+        return {
+            "file_info": {"format": "PDF Document (Corrupted)", "size_bytes": len(file_bytes)},
+            "exif": {"Error": str(e)}, "gps": {}, "png_text": {}, "pil_info": {}, "raw_exif": {}
+        }
+
+
 # ── Main metadata extractor ────────────────────────────────────────────────
 def extract_metadata(image_bytes: bytes) -> dict:
     """
-    Extract all metadata from image bytes.
+    Extract all metadata from file bytes. Supports images (PNG, JPEG, BMP, WebP),
+    ZIP archives, PDF documents, and WAV audio files.
     Returns structured dict with all fields, file info, and GPS data.
     """
-    img = Image.open(io.BytesIO(image_bytes))
+    # Route by file signatures
+    if image_bytes.startswith(b"PK\x03\x04") or image_bytes.startswith(b"PK\x05\x06"):
+        return _extract_zip_metadata(image_bytes)
+    elif image_bytes.startswith(b"%PDF"):
+        return _extract_pdf_metadata(image_bytes)
+    elif image_bytes.startswith(b"RIFF") and b"WAVE" in image_bytes[8:16]:
+        return _extract_wav_metadata(image_bytes)
 
-    # Basic file info
-    file_info = {
-        "format":     img.format or "Unknown",
-        "mode":       img.mode,
-        "width":      img.width,
-        "height":     img.height,
-        "size_bytes": len(image_bytes),
-        "size_kb":    round(len(image_bytes) / 1024, 2),
-    }
-
-    # PNG text chunks (iTXt, tEXt, zTXt) — rich source of hidden data
-    png_text = {}
-    if hasattr(img, 'text') and img.text:
-        png_text = {k: str(v) for k, v in img.text.items()}
-
-    # EXIF data
-    exif_fields = {}
-    gps_fields = {}
-    raw_exif = {}
-
+    # Default to image metadata extraction
     try:
-        exif_data = img._getexif()  # type: ignore
-        if exif_data:
-            for tag_id, value in exif_data.items():
-                tag_name = TAGS.get(tag_id, f"Tag_{tag_id}")
-                norm = _normalize(value)
-                raw_exif[tag_name] = norm
+        img = Image.open(io.BytesIO(image_bytes))
 
-                if tag_name == "GPSInfo" and isinstance(value, dict):
-                    for gps_tag, gps_val in value.items():
-                        gps_name = GPSTAGS.get(gps_tag, f"GPS_{gps_tag}")
-                        gps_fields[gps_name] = _normalize(gps_val)
-                else:
-                    exif_fields[tag_name] = norm
+        # Basic file info
+        file_info = {
+            "format":     img.format or "Unknown",
+            "mode":       img.mode,
+            "width":      img.width,
+            "height":     img.height,
+            "size_bytes": len(image_bytes),
+            "size_kb":    round(len(image_bytes) / 1024, 2),
+        }
+
+        # PNG text chunks (iTXt, tEXt, zTXt) — rich source of hidden data
+        png_text = {}
+        if hasattr(img, "text") and img.text:
+            png_text = {k: str(v) for k, v in img.text.items()}
+
+        # EXIF data
+        exif_fields = {}
+        gps_fields = {}
+        raw_exif = {}
+
+        try:
+            exif_data = img._getexif()  # type: ignore
+            if exif_data:
+                for tag_id, value in exif_data.items():
+                    tag_name = TAGS.get(tag_id, f"Tag_{tag_id}")
+                    norm = _normalize(value)
+                    raw_exif[tag_name] = norm
+
+                    if tag_name == "GPSInfo" and isinstance(value, dict):
+                        for gps_tag, gps_val in value.items():
+                            gps_name = GPSTAGS.get(gps_tag, f"GPS_{gps_tag}")
+                            gps_fields[gps_name] = _normalize(gps_val)
+                    else:
+                        exif_fields[tag_name] = norm
+        except Exception:
+            pass
+
+        # Also try PIL info dict (covers more formats)
+        pil_info = {}
+        for k, v in (img.info or {}).items():
+            if k not in ("exif", "icc_profile", "dpi"):
+                try:
+                    pil_info[str(k)] = _normalize(v)
+                except Exception:
+                    pass
+
+        return {
+            "file_info": file_info,
+            "exif": exif_fields,
+            "gps": gps_fields,
+            "png_text": png_text,
+            "pil_info": pil_info,
+            "raw_exif": raw_exif,
+        }
     except Exception:
-        pass
+        # General binary fallback
+        return {
+            "file_info": {
+                "format": "Unknown/Binary",
+                "size_bytes": len(image_bytes),
+                "size_kb": round(len(image_bytes) / 1024, 2),
+            },
+            "exif": {},
+            "gps": {},
+            "png_text": {},
+            "pil_info": {},
+            "raw_exif": {},
+        }
 
-    # Also try PIL info dict (covers more formats)
-    pil_info = {}
-    for k, v in (img.info or {}).items():
-        if k not in ('exif', 'icc_profile', 'dpi'):
-            try:
-                pil_info[str(k)] = _normalize(v)
-            except Exception:
-                pass
-
-    return {
-        "file_info": file_info,
-        "exif": exif_fields,
-        "gps": gps_fields,
-        "png_text": png_text,
-        "pil_info": pil_info,
-        "raw_exif": raw_exif,
-    }
 
 
 # ── Metadata analyzer ─────────────────────────────────────────────────────

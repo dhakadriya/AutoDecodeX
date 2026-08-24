@@ -2,7 +2,7 @@
 FastAPI route definitions.
 """
 import time
-from fastapi import APIRouter, UploadFile, File
+from fastapi import APIRouter, UploadFile, File, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 
@@ -146,41 +146,115 @@ def run_experiments():
 
 @router.post("/file/analyze")
 async def analyze_file_endpoint(file: UploadFile = File(...)):
-    content = await file.read()
+    import hashlib
+    import math
+    from collections import Counter
+    from backend.engine.file_handler import validate_and_save_temp_file, cleanup_temp_file
     
-    # Run full metadata pipeline
-    meta_result = full_metadata_pipeline(content)
-    
-    # Run LSB extraction (1 bit, RGB, no password)
-    lsb_result = extract_lsb(content, bits=1, channels="RGB", password=None)
-    
-    # Run entropy analysis
-    entropy_result = analyze_entropy(content)
-    
-    # Auto-decode LSB text if present
-    lsb_text = lsb_result.get("ascii_text", "")
-    lsb_decode = None
-    if lsb_text and len(lsb_text) >= 4:
-        try:
-            dr = decode(lsb_text)
-            lsb_decode = {
-                "success": dr.success,
-                "final_output": dr.final_output,
-                "total_score": round(dr.total_score, 3),
-                "path_description": dr.path_description,
-                "is_ctf_flag": dr.is_ctf_flag,
-            }
-        except Exception:
-            pass
+    temp_path = None
+    try:
+        # Validate size up to 50MB and save securely
+        temp_path, content = await validate_and_save_temp_file(
+            file,
+            max_size=50 * 1024 * 1024, # 50MB
+            allowed_extensions=None,
+            allowed_mime_types=None,
+            validate_magic=False
+        )
+        
+        # 1. Hashes
+        sha256 = hashlib.sha256(content).hexdigest()
+        md5 = hashlib.md5(content).hexdigest()
+        
+        # 2. Entropy
+        def _calculate_entropy(data: bytes) -> float:
+            if not data:
+                return 0.0
+            counts = Counter(data)
+            total = len(data)
+            return -sum((c / total) * math.log2(c / total) for c in counts.values())
+        
+        entropy = _calculate_entropy(content)
+        
+        # 3. Magic Bytes
+        magic_bytes = " ".join(f"{b:02X}" for b in content[:16])
+        
+        # 4. Printable Ratio
+        printable_count = sum(1 for b in content if 32 <= b <= 126)
+        printable_ratio = (printable_count / len(content)) * 100 if len(content) > 0 else 0.0
+        
+        # 5. Extract Strings
+        def _extract_strings(data: bytes, min_len: int = 4) -> list[str]:
+            strings = []
+            current = []
+            for b in data:
+                if 32 <= b <= 126:
+                    current.append(chr(b))
+                else:
+                    if len(current) >= min_len:
+                        strings.append("".join(current))
+                    current = []
+            if len(current) >= min_len:
+                strings.append("".join(current))
+            return strings[:100]
             
-    # Combine results
-    return {
-        "filename": file.filename,
-        "metadata": meta_result,
-        "lsb": lsb_result,
-        "lsb_decode": lsb_decode,
-        "entropy": entropy_result,
-    }
+        strings = _extract_strings(content)
+        
+        # 6. Metadata pipeline
+        meta_result = full_metadata_pipeline(content)
+        file_type = meta_result["metadata"]["file_info"].get("format", "Unknown")
+        
+        # 7. LSB & Entropy details (if it's an image)
+        lsb_result = None
+        lsb_decode = None
+        entropy_details = None
+        
+        is_image = file_type in ("PNG image", "JPEG image", "BMP image", "GIF image", "PNG", "JPEG", "BMP") or file.content_type in ("image/png", "image/jpeg", "image/jpg", "image/bmp", "image/webp")
+        if is_image:
+            try:
+                lsb_result = extract_lsb(content, bits=1, channels="RGB", password=None)
+                entropy_details = analyze_entropy(content)
+                
+                # Auto-decode LSB text if present
+                lsb_text = lsb_result.get("ascii_text", "")
+                if lsb_text and len(lsb_text) >= 4:
+                    dr = decode(lsb_text)
+                    lsb_decode = {
+                        "success": dr.success,
+                        "final_output": dr.final_output,
+                        "total_score": round(dr.total_score, 3),
+                        "path_description": dr.path_description,
+                        "is_ctf_flag": dr.is_ctf_flag,
+                    }
+            except Exception:
+                pass
+                
+        return {
+            "name": file.filename,
+            "filename": file.filename,
+            "size": len(content),
+            "type": file_type,
+            "sha256": sha256,
+            "md5": md5,
+            "entropy": round(entropy, 4),
+            "strings": strings,
+            "printableRatio": round(printable_ratio, 2),
+            "magicBytes": magic_bytes,
+            "metadata": meta_result,
+            "lsb": lsb_result,
+            "lsb_decode": lsb_decode,
+            "entropy_details": entropy_details,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail={"status": "error", "message": f"File analysis failed: {str(e)}"}
+        )
+    finally:
+        if temp_path:
+            cleanup_temp_file(temp_path)
 
 
 @router.get("/health")

@@ -43,9 +43,35 @@ export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
           transition={{ duration: 0.3 }}
           className="flex items-center gap-3"
         >
-          <div className="w-8 h-8 rounded-lg bg-theme-gradient flex items-center justify-center shadow-lg shadow-theme-accent/15">
-            <Code2 size={16} className="text-white" />
-          </div>
+          <motion.div 
+            animate={{
+              boxShadow: [
+                "0 0 0px rgba(6, 182, 212, 0)",
+                "0 0 10px rgba(6, 182, 212, 0.4)",
+                "0 0 0px rgba(6, 182, 212, 0)"
+              ]
+            }}
+            transition={{
+              duration: 3,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+            className="w-8 h-8 rounded-lg bg-theme-gradient flex items-center justify-center shadow-lg shadow-theme-accent/15"
+          >
+            <motion.div
+              animate={{
+                rotate: [0, -6, 6, -6, 0],
+                scale: [1, 1.06, 0.97, 1.03, 1]
+              }}
+              transition={{
+                duration: 6,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+            >
+              <Code2 size={16} className="text-white" />
+            </motion.div>
+          </motion.div>
           {!collapsed && (
             <div>
               <h1 className="text-sm font-bold text-theme-primary font-mono tracking-wide">AutoDecodeX</h1>

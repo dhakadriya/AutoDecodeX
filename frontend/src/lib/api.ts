@@ -1,4 +1,4 @@
-const BASE = "/api";
+const BASE = process.env.NEXT_PUBLIC_API_URL || "/api";
 
 export interface DecodingStep {
   step_number: number;
@@ -318,3 +318,23 @@ export async function stegoFullScan(
   if (!res.ok) throw new Error(`Full scan error: ${res.status}`);
   return res.json();
 }
+
+export async function fileAnalyze(file: File): Promise<any> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${BASE}/file/analyze`, { method: "POST", body: form });
+  if (!res.ok) {
+    let errMsg = `File analysis error: ${res.status}`;
+    try {
+      const errData = await res.json();
+      if (errData && errData.detail && errData.detail.message) {
+        errMsg = errData.detail.message;
+      } else if (errData && errData.detail) {
+        errMsg = typeof errData.detail === "string" ? errData.detail : JSON.stringify(errData.detail);
+      }
+    } catch (e) {}
+    throw new Error(errMsg);
+  }
+  return res.json();
+}
+
