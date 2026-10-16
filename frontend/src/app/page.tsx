@@ -15,6 +15,7 @@ import MetadataWorkspace from "@/components/workspaces/MetadataWorkspace";
 import FileAnalyzerWorkspace from "@/components/workspaces/FileAnalyzerWorkspace";
 import SettingsWorkspace from "@/components/workspaces/SettingsWorkspace";
 import ExperimentsWorkspace from "@/components/workspaces/ExperimentsWorkspace";
+import InvestigationWorkspace from "@/components/workspaces/InvestigationWorkspace";
 
 export default function Home() {
   const [activeView, setActiveView] = useState("decoder");
@@ -185,6 +186,13 @@ export default function Home() {
                 <ExperimentsWorkspace
                   key="experiments"
                   onLog={addLog}
+                />
+              )}
+              {activeView === "investigation" && (
+                <InvestigationWorkspace
+                  key="investigation"
+                  onLog={addLog}
+                  onClearLogs={clearLogs}
                 />
               )}
               {activeView === "settings" && (

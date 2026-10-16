@@ -338,3 +338,205 @@ export async function fileAnalyze(file: File): Promise<any> {
   return res.json();
 }
 
+
+// ── Case Management API ────────────────────────────────────────────────────
+
+export type FindingStatus =
+  | "CONFIRMED_ARTIFACT"
+  | "SUSPICIOUS_INDICATOR"
+  | "NO_INDICATOR_DETECTED"
+  | "INCONCLUSIVE";
+
+export type Severity = "informational" | "low" | "medium" | "high" | "critical";
+
+export type ArtifactKind =
+  | "original_evidence"
+  | "extracted_data"
+  | "decoded_content"
+  | "derived_artifact";
+
+export interface CaseFinding {
+  finding_id: string;
+  case_id: string;
+  artifact_id: string;
+  category: string;
+  title: string;
+  summary: string;
+  status: FindingStatus;
+  severity: Severity;
+  observed_value?: string | null;
+  expected_value?: string | null;
+  evidence_details?: Record<string, unknown> | null;
+  detection_method: string;
+  rule_id?: string | null;
+  detector_version?: string | null;
+  explanation: string;
+  limitations: string;
+  recommended_next_step?: string | null;
+  parent_finding_ids: string[];
+  supporting_offsets?: number[] | null;
+  input_artifact_hash?: string | null;
+  output_artifact_hash?: string | null;
+  timestamp_utc: string;
+}
+
+export interface CaseArtifact {
+  artifact_id: string;
+  case_id: string;
+  kind: ArtifactKind;
+  filename: string;
+  size_bytes: number;
+  sha256: string;
+  md5: string;
+  mime_type?: string | null;
+  detected_format?: string | null;
+  parent_artifact_id?: string | null;
+  parent_operation?: string | null;
+  recursion_depth: number;
+  timestamp_utc: string;
+}
+
+export interface TransformationStep {
+  step_id: string;
+  case_id: string;
+  source_artifact_id: string;
+  source_sha256: string;
+  decoder_name: string;
+  input_size_bytes: number;
+  output_size_bytes: number;
+  output_artifact_id?: string | null;
+  output_sha256?: string | null;
+  recursion_depth: number;
+  duration_ms: number;
+  status: string;
+  warnings: string[];
+  errors: string[];
+}
+
+export interface CorrelationResult {
+  correlation_id: string;
+  case_id: string;
+  rule_id: string;
+  rule_description: string;
+  triggered_by_finding_ids: string[];
+  status: FindingStatus;
+  severity: Severity;
+  match_reason: string;
+  supporting_evidence: string;
+  what_this_does_not_prove: string;
+  next_step: string;
+  timestamp_utc: string;
+}
+
+export interface ModuleResult {
+  module_name: string;
+  artifact_id: string;
+  status: string;
+  duration_ms: number;
+  findings: CaseFinding[];
+  warnings: string[];
+  errors: string[];
+}
+
+export interface CaseData {
+  case_id: string;
+  created_at_utc: string;
+  completed_at_utc?: string | null;
+  original_filename: string;
+  file_size_bytes: number;
+  detected_format?: string | null;
+  mime_type?: string | null;
+  sha256: string;
+  md5: string;
+  status: string;
+  enabled_modules: string[];
+  completed_modules: string[];
+  artifacts: CaseArtifact[];
+  findings: CaseFinding[];
+  correlations: CorrelationResult[];
+  transformation_graph: TransformationStep[];
+  module_results: ModuleResult[];
+  summary?: string | null;
+  errors: string[];
+  warnings: string[];
+  app_version: string;
+  engine_version: string;
+}
+
+export interface CaseSummary {
+  case_id: string;
+  created_at_utc: string;
+  completed_at_utc?: string | null;
+  original_filename: string;
+  file_size_bytes: number;
+  detected_format?: string | null;
+  sha256: string;
+  status: string;
+  finding_count: number;
+  correlation_count: number;
+  modules_completed: string[];
+}
+
+export interface CaseListResponse {
+  cases: CaseSummary[];
+  total: number;
+  limit: number;
+  offset: number;
+  storage_note: string;
+}
+
+export async function createCase(file: File): Promise<CaseData> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("run_stego", "true");
+  const res = await fetch(`${BASE}/cases`, { method: "POST", body: form });
+  if (!res.ok) {
+    let msg = `Case creation failed: ${res.status}`;
+    try {
+      const err = await res.json();
+      if (err?.detail?.message) msg = err.detail.message;
+    } catch {}
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+export async function getCases(limit = 20, offset = 0): Promise<CaseListResponse> {
+  const res = await fetch(`${BASE}/cases?limit=${limit}&offset=${offset}`);
+  if (!res.ok) throw new Error(`Failed to list cases: ${res.status}`);
+  return res.json();
+}
+
+export async function getCase(caseId: string): Promise<CaseData> {
+  const res = await fetch(`${BASE}/cases/${caseId}`);
+  if (!res.ok) throw new Error(`Case not found: ${res.status}`);
+  return res.json();
+}
+
+export async function deleteCase(caseId: string): Promise<void> {
+  const res = await fetch(`${BASE}/cases/${caseId}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
+}
+
+export function getJsonReportUrl(caseId: string): string {
+  return `${BASE}/cases/${caseId}/report/json`;
+}
+
+export function getPdfReportUrl(caseId: string): string {
+  return `${BASE}/cases/${caseId}/report/pdf`;
+}
+
+export async function runBenchmark(
+  split: "dev" | "eval" | "all" = "eval",
+  entropyThreshold = 0.5,
+  lsbThreshold = 0.5,
+): Promise<Record<string, unknown>> {
+  const params = new URLSearchParams({
+    split,
+    entropy_threshold: String(entropyThreshold),
+    lsb_threshold: String(lsbThreshold),
+  });
+  const res = await fetch(`${BASE}/benchmark/run?${params}`, { method: "POST" });
+  if (!res.ok) throw new Error(`Benchmark failed: ${res.status}`);
+  return res.json();
+}

@@ -5,12 +5,17 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.api.routes import router
+from backend.api.case_routes import case_router
 from backend.stego.routes import stego_router
 
 app = FastAPI(
     title="AutoDecodeX",
-    description="AI-assisted encoding detection and decoding engine for CTF players.",
-    version="1.0.0",
+    description=(
+        "Digital forensics and steganalysis platform. "
+        "Provides encoding detection, recursive decoding, steganalysis, "
+        "case management, and forensic report generation."
+    ),
+    version="2.0.0",
 )
 
 origins_env = os.getenv("ALLOWED_ORIGINS")
@@ -29,15 +34,32 @@ app.add_middleware(
 
 app.include_router(router)
 app.include_router(stego_router)
+app.include_router(case_router)
 
 
 @app.get("/")
 def root():
-    return {"message": "AutoDecodeX API is running. Visit /docs for Swagger UI."}
+    return {
+        "message": "AutoDecodeX API v2.0.0 is running. Visit /docs for Swagger UI.",
+        "endpoints": {
+            "decode": "POST /api/decode",
+            "detect": "POST /api/detect",
+            "cases": "POST /api/cases | GET /api/cases",
+            "report_json": "GET /api/cases/{id}/report/json",
+            "report_pdf": "GET /api/cases/{id}/report/pdf",
+            "stego": "POST /api/stego/analyze",
+            "benchmark": "POST /api/benchmark/run",
+            "health": "GET /health",
+        }
+    }
 
 @app.get("/health")
 def health():
+    from backend.models.case_store import case_count
     return {
         "status": "healthy",
-        "service": "stego-analyzer"
+        "service": "AutoDecodeX",
+        "version": "2.0.0",
+        "cases_in_memory": case_count(),
+        "storage": "in-process (ephemeral — does not survive restart)",
     }

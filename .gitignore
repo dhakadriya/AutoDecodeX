@@ -1,37 +1,39 @@
-# Python cache and distribution
+# Python
 __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
-.Python
 *.egg-info/
 dist/
 build/
 .venv/
 venv/
 env/
-*.egg
 .pytest_cache/
 .coverage
 htmlcov/
-scratch/
 
-# Node dependencies and builds
+# Node / Next.js
 node_modules/
 frontend/node_modules/
 frontend/.next/
 frontend/out/
-frontend/.env*.local
+frontend/tsconfig.tsbuildinfo
 
-# Environment files
+# Environment files — never commit secrets
 .env
 .env.local
+frontend/.env.local
+frontend/.env*.local
 
-# OS leftovers
+# OS
 .DS_Store
 Thumbs.db
 
-# IDE settings
+# IDE
 .vscode/
 .idea/
 *.swp
+
+# Logs
+*.log

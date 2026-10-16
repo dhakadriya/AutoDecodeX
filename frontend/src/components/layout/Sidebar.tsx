@@ -8,7 +8,8 @@ import {
   Settings, 
   ChevronLeft,
   Keyboard,
-  FlaskConical
+  FlaskConical,
+  FolderOpen,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -22,6 +23,7 @@ const NAV_ITEMS = [
   { id: "stego", label: "Stego Analyzer", icon: Eye, shortcut: "⌘2" },
   { id: "metadata", label: "Metadata Explorer", icon: Database, shortcut: "⌘3" },
   { id: "file", label: "File Analyzer", icon: FileSearch, shortcut: "⌘4" },
+  { id: "investigation", label: "Investigation", icon: FolderOpen, shortcut: "⌘6" },
   { id: "experiments", label: "Experiments", icon: FlaskConical, shortcut: "⌘5" },
   { id: "settings", label: "Settings", icon: Settings, shortcut: "⌘," },
 ];

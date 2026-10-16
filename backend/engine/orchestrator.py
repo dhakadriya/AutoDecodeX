@@ -206,15 +206,6 @@ def decode(
         path_description="No encoding detected or decoding failed.",
     )
 
-    # Nothing worked — return original with no steps
-    return DecodingResult(
-        success=False,
-        final_output=input_text,
-        steps=[],
-        total_score=initial_score,
-        path_description="No encoding detected or decoding failed.",
-    )
-
 
 def brute_force_caesar(text: str) -> list[dict]:
     """Return all 26 Caesar shifts ranked by readability score."""
