@@ -411,6 +411,32 @@ class GzipDecoder(BaseDecoder):
             return None
 
 
+class AtbashDecoder(BaseDecoder):
+    """
+    Atbash substitution cipher decoder (A <-> Z, B <-> Y, etc.).
+    Preserves casing and non-alphabetic characters.
+    """
+    name = "atbash"
+    category = "cipher"
+    description = "Atbash reciprocal alphabet substitution cipher"
+
+    def decode(self, text: str) -> Optional[str]:
+        if not text:
+            return None
+        if not any(c.isalpha() for c in text):
+            return None
+        trans = []
+        for ch in text:
+            if 'a' <= ch <= 'z':
+                trans.append(chr(ord('z') - (ord(ch) - ord('a'))))
+            elif 'A' <= ch <= 'Z':
+                trans.append(chr(ord('Z') - (ord(ch) - ord('A'))))
+            else:
+                trans.append(ch)
+        decoded = "".join(trans)
+        return decoded if decoded != text else None
+
+
 # Registry
 DECODERS: dict[str, BaseDecoder] = {
     'base64': Base64Decoder(),
@@ -421,6 +447,7 @@ DECODERS: dict[str, BaseDecoder] = {
     'decimal_ascii': DecimalAsciiDecoder(),
     'rot13': ROT13Decoder(),
     'caesar': CaesarDecoder(),
+    'atbash': AtbashDecoder(),
     'morse': MorseDecoder(),
     'url': URLDecoder(),
     'html_entity': HTMLEntityDecoder(),
