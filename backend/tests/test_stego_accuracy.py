@@ -47,7 +47,8 @@ def _embed_lsb_payload(cover_bytes: bytes, payload: bytes) -> bytes:
             bits.append((b >> i) & 1)
     flat = arr[:, :, 0].ravel()
     for idx, bit in enumerate(bits[:len(flat)]):
-        flat[idx] = (int(flat[idx]) & ~1) | bit
+        flat[idx] = (int(flat[idx]) & 0xFE) | bit
+    arr[:, :, 0] = flat.reshape(arr.shape[:2])
     stego = Image.fromarray(arr, mode="RGB")
     buf = io.BytesIO()
     stego.save(buf, format="PNG")
