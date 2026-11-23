@@ -72,7 +72,8 @@ def _embed_lsb(cover_bytes: bytes, payload: bytes) -> bytes:
     if len(bits) > len(flat):
         raise ValueError(f"Payload too large: {len(bits)} bits, capacity {len(flat)} bits")
     for idx, bit in enumerate(bits):
-        flat[idx] = (int(flat[idx]) & ~1) | bit
+        flat[idx] = (int(flat[idx]) & 0xFE) | bit
+    arr[:, :, 0] = flat.reshape(arr.shape[:2])
     stego = Image.fromarray(arr, mode="RGB")
     buf = io.BytesIO()
     stego.save(buf, format="PNG")
@@ -127,7 +128,7 @@ def generate_dataset(
 
         # Cover (negative) sample
         samples.append({
-            "sample_id": str(uuid.UUID(int=rng.integers(0, 2**128))),
+            "sample_id": str(uuid.UUID(bytes=bytes(rng.bytes(16)))),
             "label": "cover",
             "ground_truth": False,
             "image_bytes": cover_bytes,
@@ -151,7 +152,7 @@ def generate_dataset(
                 stego_bytes = _embed_lsb(cover_bytes, payload)
                 stego_hash = _sha256(stego_bytes)
                 samples.append({
-                    "sample_id": str(uuid.UUID(int=rng.integers(0, 2**128))),
+                    "sample_id": str(uuid.UUID(bytes=bytes(rng.bytes(16)))),
                     "label": "stego",
                     "ground_truth": True,
                     "image_bytes": stego_bytes,
