@@ -11,7 +11,7 @@ import pytest
 from backend.decoders.decoders import (
     Base64Decoder, Base32Decoder, Base85Decoder,
     HexDecoder, BinaryDecoder, DecimalAsciiDecoder,
-    ROT13Decoder, CaesarDecoder, AtbashDecoder, BaconianDecoder, MorseDecoder,
+    ROT13Decoder, CaesarDecoder, AtbashDecoder, BaconianDecoder, A1Z26Decoder, MorseDecoder,
     URLDecoder, HTMLEntityDecoder, UnicodeEscapeDecoder,
     XORDecoder, UUDecoder, ZlibDecoder, GzipDecoder,
 )
@@ -429,6 +429,35 @@ class TestBaconianDecoder:
     def test_baconian_invalid_chars(self):
         decoder = BaconianDecoder()
         assert decoder.decode("AACAA") is None
+
+
+class TestA1Z26Decoder:
+    """Test A1Z26 numerical alphabet position substitution decoder."""
+
+    def test_a1z26_hyphen_separated(self):
+        decoder = A1Z26Decoder()
+        assert decoder.decode("8-5-12-12-15") == "HELLO"
+
+    def test_a1z26_space_separated(self):
+        decoder = A1Z26Decoder()
+        assert decoder.decode("8 5 12 12 15") == "HELLO"
+
+    def test_a1z26_comma_separated(self):
+        decoder = A1Z26Decoder()
+        assert decoder.decode("8, 5, 12, 12, 15") == "HELLO"
+
+    def test_a1z26_invalid_number_out_of_range(self):
+        decoder = A1Z26Decoder()
+        assert decoder.decode("8-5-27") is None
+
+    def test_a1z26_non_digits(self):
+        decoder = A1Z26Decoder()
+        assert decoder.decode("8-five-12") is None
+
+    def test_a1z26_empty(self):
+        decoder = A1Z26Decoder()
+        assert decoder.decode("") is None
+
 
 
 
