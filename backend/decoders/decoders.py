@@ -503,6 +503,42 @@ class A1Z26Decoder(BaseDecoder):
         return "".join(chars)
 
 
+class OctalDecoder(BaseDecoder):
+    """
+    Octal byte representation decoder.
+    Converts space-separated, backslash-prefixed, or 0o-prefixed octal numbers into text.
+    """
+    name = "octal"
+    category = "encoding"
+    description = "Base-8 octal byte representation decoder"
+
+    def decode(self, text: str) -> Optional[str]:
+        if not text:
+            return None
+        clean = text.strip()
+        if clean.startswith("\\"):
+            tokens = [t for t in clean.split("\\") if t]
+        else:
+            tokens = [t.lower().replace("0o", "") for t in clean.split() if t]
+
+        if not tokens or len(tokens) < 2:
+            return None
+
+        decoded_bytes = bytearray()
+        for t in tokens:
+            if not re.fullmatch(r'[0-7]{1,3}', t):
+                return None
+            val = int(t, 8)
+            if val > 255:
+                return None
+            decoded_bytes.append(val)
+
+        try:
+            return decoded_bytes.decode('utf-8')
+        except UnicodeDecodeError:
+            return decoded_bytes.decode('latin-1')
+
+
 # Registry
 DECODERS: dict[str, BaseDecoder] = {
     'base64': Base64Decoder(),
@@ -511,6 +547,7 @@ DECODERS: dict[str, BaseDecoder] = {
     'hex': HexDecoder(),
     'binary': BinaryDecoder(),
     'decimal_ascii': DecimalAsciiDecoder(),
+    'octal': OctalDecoder(),
     'rot13': ROT13Decoder(),
     'caesar': CaesarDecoder(),
     'atbash': AtbashDecoder(),
