@@ -232,6 +232,27 @@ def detect_atbash(text: str) -> float:
     return 0.40
 
 
+def detect_baconian(text: str) -> float:
+    """
+    Detect Bacon's 5-bit cipher patterns composed of A/B or a/b.
+    """
+    text = text.strip()
+    if not text or len(text) < 5:
+        return 0.0
+
+    tokens = text.split()
+    # Space separated 5-character groups
+    if tokens and all(len(t) == 5 and set(t.upper()).issubset({'A', 'B'}) for t in tokens):
+        return 0.95
+
+    # Continuous stream
+    no_spaces = "".join(tokens).upper()
+    if len(no_spaces) >= 10 and len(no_spaces) % 5 == 0 and set(no_spaces).issubset({'A', 'B'}):
+        return 0.90
+
+    return 0.0
+
+
 def detect_morse(text: str) -> float:
     text = text.strip()
     # Morse uses dots, dashes, spaces, slashes
@@ -410,6 +431,7 @@ DETECTORS = {
     'rot13': detect_rot13,
     'caesar': detect_caesar,
     'atbash': detect_atbash,
+    'baconian': detect_baconian,
     'morse': detect_morse,
     'url': detect_url_encoding,
     'html_entity': detect_html_entity,
