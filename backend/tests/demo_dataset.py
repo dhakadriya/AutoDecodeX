@@ -106,7 +106,7 @@ def generate_test_image() -> bytes:
     flat_pixels = arr[:, :, 0].ravel()
     for idx, bit in enumerate(bits):
         if idx < len(flat_pixels):
-            flat_pixels[idx] = (flat_pixels[idx] & ~1) | bit
+            flat_pixels[idx] = (int(flat_pixels[idx]) & 0xFE) | bit
 
     img_stego = Image.fromarray(arr)
 
