@@ -437,6 +437,45 @@ class AtbashDecoder(BaseDecoder):
         return decoded if decoded != text else None
 
 
+class BaconianDecoder(BaseDecoder):
+    """
+    Bacon's cipher decoder.
+    Decodes 5-character sequences of A/B into Latin alphabet characters.
+    Supports both space-separated and continuous representations.
+    """
+    name = "baconian"
+    category = "cipher"
+    description = "Bacon 5-bit binary alphabet cipher"
+
+    BACON_DICT = {
+        'AAAAA': 'A', 'AAAAB': 'B', 'AAABA': 'C', 'AAABB': 'D', 'AABAA': 'E',
+        'AABAB': 'F', 'AABBA': 'G', 'AABBB': 'H', 'ABAAA': 'I', 'ABAAB': 'J',
+        'ABABA': 'K', 'ABABB': 'L', 'ABBAA': 'M', 'ABBAB': 'N', 'ABBBA': 'O',
+        'ABBBB': 'P', 'BAAAA': 'Q', 'BAAAB': 'R', 'BAABA': 'S', 'BAABB': 'T',
+        'BABAA': 'U', 'BABAB': 'V', 'BABBA': 'W', 'BABBB': 'X', 'BBAAA': 'Y',
+        'BBAAB': 'Z'
+    }
+
+    def decode(self, text: str) -> Optional[str]:
+        if not text:
+            return None
+        clean = text.strip()
+        tokens = clean.split()
+        # Case 1: Space-separated 5-letter blocks
+        if tokens and all(len(t) == 5 and set(t.upper()).issubset({'A', 'B'}) for t in tokens):
+            decoded = "".join(self.BACON_DICT.get(t.upper(), "?") for t in tokens)
+            return decoded if "?" not in decoded else None
+
+        # Case 2: Continuous stream of A/B characters
+        no_spaces = "".join(clean.split()).upper()
+        if len(no_spaces) >= 5 and len(no_spaces) % 5 == 0 and set(no_spaces).issubset({'A', 'B'}):
+            chunks = [no_spaces[i:i+5] for i in range(0, len(no_spaces), 5)]
+            decoded = "".join(self.BACON_DICT.get(c, "?") for c in chunks)
+            return decoded if "?" not in decoded else None
+
+        return None
+
+
 # Registry
 DECODERS: dict[str, BaseDecoder] = {
     'base64': Base64Decoder(),
@@ -448,6 +487,7 @@ DECODERS: dict[str, BaseDecoder] = {
     'rot13': ROT13Decoder(),
     'caesar': CaesarDecoder(),
     'atbash': AtbashDecoder(),
+    'baconian': BaconianDecoder(),
     'morse': MorseDecoder(),
     'url': URLDecoder(),
     'html_entity': HTMLEntityDecoder(),
