@@ -6,7 +6,7 @@ Tests detection accuracy and confidence scoring for all supported encodings.
 import pytest
 from backend.detectors.detector import (
     detect_base64, detect_hex, detect_binary,
-    detect_rot13, detect_morse, detect_url_encoding,
+    detect_rot13, detect_caesar, detect_atbash, detect_morse, detect_url_encoding,
     detect_html_entity, detect_unicode_escape,
     detect_uuencoding, detect_zlib, detect_gzip,
     detect_md5, detect_sha1, detect_sha224, detect_sha256,
@@ -200,6 +200,22 @@ class TestNewDetectors:
         # SHA-1 (40 chars)
         assert detect_sha1("aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d") > 0.8
 
+
+
+class TestAtbashDetection:
+    """Test Atbash cipher detection."""
+
+    def test_detect_atbash_signature(self):
+        # "svool dliow" (hello world in atbash)
+        conf = detect_atbash("svool dliow")
+        assert conf > 0.7
+
+    def test_detect_atbash_generic_alpha(self):
+        conf = detect_atbash("some random cipher letters")
+        assert conf >= 0.4
+
+    def test_reject_atbash_for_numbers(self):
+        assert detect_atbash("1234567890") == 0.0
 
 
 class TestDetectorEdgeCases:
