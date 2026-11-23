@@ -539,6 +539,42 @@ class OctalDecoder(BaseDecoder):
             return decoded_bytes.decode('latin-1')
 
 
+class BrailleDecoder(BaseDecoder):
+    """
+    Braille Unicode transcript decoder.
+    Converts Unicode Braille patterns (U+2800..U+28FF) into Latin alphabet characters.
+    """
+    name = "braille"
+    category = "cipher"
+    description = "Unicode Braille patterns to Latin alphabet decoder"
+
+    BRAILLE_MAP = {
+        '⠁': 'a', '⠃': 'b', '⠉': 'c', '⠙': 'd', '⠑': 'e', '⠋': 'f', '⠛': 'g',
+        '⠓': 'h', '⠊': 'i', '⠚': 'j', '⠅': 'k', '⠇': 'l', '⠍': 'm', '⠝': 'n',
+        '⠕': 'o', '⠏': 'p', '⠟': 'q', '⠗': 'r', '⠎': 's', '⠞': 't', '⠥': 'u',
+        '⠧': 'v', '⠺': 'w', '⠭': 'x', '⠽': 'y', '⠵': 'z', '⠀': ' ',
+        '⠂': ',', '⠲': '.', '⠦': '?', '⠖': '!', '⠤': '-', '⠒': ':',
+    }
+
+    def decode(self, text: str) -> Optional[str]:
+        if not text:
+            return None
+        clean = text.strip()
+        braille_chars = [c for c in clean if '\u2800' <= c <= '\u28ff']
+        if not braille_chars or len(braille_chars) < len(clean) * 0.5:
+            return None
+        decoded = []
+        for ch in clean:
+            if ch in self.BRAILLE_MAP:
+                decoded.append(self.BRAILLE_MAP[ch])
+            elif ch in (' ', '\n', '\t'):
+                decoded.append(ch)
+            else:
+                decoded.append(ch)
+        res = "".join(decoded)
+        return res if res != clean else None
+
+
 # Registry
 DECODERS: dict[str, BaseDecoder] = {
     'base64': Base64Decoder(),
@@ -553,6 +589,7 @@ DECODERS: dict[str, BaseDecoder] = {
     'atbash': AtbashDecoder(),
     'baconian': BaconianDecoder(),
     'a1z26': A1Z26Decoder(),
+    'braille': BrailleDecoder(),
     'morse': MorseDecoder(),
     'url': URLDecoder(),
     'html_entity': HTMLEntityDecoder(),
