@@ -6,7 +6,7 @@ Tests detection accuracy and confidence scoring for all supported encodings.
 import pytest
 from backend.detectors.detector import (
     detect_base64, detect_hex, detect_binary,
-    detect_rot13, detect_caesar, detect_atbash, detect_morse, detect_url_encoding,
+    detect_rot13, detect_caesar, detect_atbash, detect_baconian, detect_morse, detect_url_encoding,
     detect_html_entity, detect_unicode_escape,
     detect_uuencoding, detect_zlib, detect_gzip,
     detect_md5, detect_sha1, detect_sha224, detect_sha256,
@@ -216,6 +216,26 @@ class TestAtbashDetection:
 
     def test_reject_atbash_for_numbers(self):
         assert detect_atbash("1234567890") == 0.0
+
+
+class TestBaconianDetection:
+    """Test Baconian cipher detection."""
+
+    def test_detect_space_separated(self):
+        assert detect_baconian("AABAA ABBAB AAABB") > 0.9
+
+    def test_detect_continuous(self):
+        assert detect_baconian("AABAAABBABAAABB") > 0.85
+
+    def test_detect_lowercase(self):
+        assert detect_baconian("aabaa abbab aaabb") > 0.9
+
+    def test_reject_wrong_chars(self):
+        assert detect_baconian("AACAA ABBAB AAABB") == 0.0
+
+    def test_reject_invalid_length(self):
+        assert detect_baconian("AABA") == 0.0
+
 
 
 class TestDetectorEdgeCases:
