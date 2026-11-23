@@ -11,7 +11,7 @@ import pytest
 from backend.decoders.decoders import (
     Base64Decoder, Base32Decoder, Base85Decoder,
     HexDecoder, BinaryDecoder, DecimalAsciiDecoder,
-    ROT13Decoder, CaesarDecoder, AtbashDecoder, MorseDecoder,
+    ROT13Decoder, CaesarDecoder, AtbashDecoder, BaconianDecoder, MorseDecoder,
     URLDecoder, HTMLEntityDecoder, UnicodeEscapeDecoder,
     XORDecoder, UUDecoder, ZlibDecoder, GzipDecoder,
 )
@@ -404,5 +404,31 @@ class TestAtbashDecoder:
     def test_atbash_empty_returns_none(self):
         decoder = AtbashDecoder()
         assert decoder.decode("") is None
+
+
+class TestBaconianDecoder:
+    """Test Bacon's cipher decoder."""
+
+    def test_baconian_space_separated(self):
+        decoder = BaconianDecoder()
+        # "AABAA" -> E, "ABBAB" -> N, "AAABB" -> D
+        assert decoder.decode("AABAA ABBAB AAABB") == "END"
+
+    def test_baconian_continuous(self):
+        decoder = BaconianDecoder()
+        assert decoder.decode("AABAAABBABAAABB") == "END"
+
+    def test_baconian_lowercase(self):
+        decoder = BaconianDecoder()
+        assert decoder.decode("aabaa abbab aaabb") == "END"
+
+    def test_baconian_invalid_length(self):
+        decoder = BaconianDecoder()
+        assert decoder.decode("AABA") is None
+
+    def test_baconian_invalid_chars(self):
+        decoder = BaconianDecoder()
+        assert decoder.decode("AACAA") is None
+
 
 
