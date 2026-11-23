@@ -11,7 +11,7 @@ import pytest
 from backend.decoders.decoders import (
     Base64Decoder, Base32Decoder, Base85Decoder,
     HexDecoder, BinaryDecoder, DecimalAsciiDecoder,
-    ROT13Decoder, CaesarDecoder, MorseDecoder,
+    ROT13Decoder, CaesarDecoder, AtbashDecoder, MorseDecoder,
     URLDecoder, HTMLEntityDecoder, UnicodeEscapeDecoder,
     XORDecoder, UUDecoder, ZlibDecoder, GzipDecoder,
 )
@@ -384,4 +384,25 @@ class TestGzipDecoder:
         encoded_str = compressed.decode('latin-1')
         result = decoder.decode(encoded_str)
         assert result == "Hello World"
+
+
+class TestAtbashDecoder:
+    """Test Atbash cipher decoder."""
+
+    def test_atbash_basic(self):
+        decoder = AtbashDecoder()
+        assert decoder.decode("Svool Dliow") == "Hello World"
+
+    def test_atbash_case_and_symbols(self):
+        decoder = AtbashDecoder()
+        assert decoder.decode("Svool, Dliow! 123") == "Hello, World! 123"
+
+    def test_atbash_no_alpha_returns_none(self):
+        decoder = AtbashDecoder()
+        assert decoder.decode("12345!@#") is None
+
+    def test_atbash_empty_returns_none(self):
+        decoder = AtbashDecoder()
+        assert decoder.decode("") is None
+
 
