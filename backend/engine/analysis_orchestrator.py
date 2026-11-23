@@ -254,16 +254,18 @@ def _run_file_analysis(
         ))
 
         # Finding: entropy
-        entropy_status = FindingStatus.INFORMATIONAL if entropy < 7.5 else FindingStatus.SUSPICIOUS_INDICATOR
-        if hasattr(FindingStatus, 'INFORMATIONAL'):
-            entropy_status = FindingStatus.SUSPICIOUS_INDICATOR if entropy >= 7.5 else FindingStatus.NO_INDICATOR_DETECTED
+        entropy_status = (
+            FindingStatus.SUSPICIOUS_INDICATOR
+            if entropy >= 7.5
+            else FindingStatus.NO_INDICATOR_DETECTED
+        )
         findings.append(Finding(
             case_id=case.case_id,
             artifact_id=evidence.artifact_id,
             category="file",
             title="Entropy Analysis",
             summary=f"Shannon entropy: {entropy:.4f} bits/byte",
-            status=FindingStatus.SUSPICIOUS_INDICATOR if entropy >= 7.5 else FindingStatus.NO_INDICATOR_DETECTED,
+            status=entropy_status,
             severity=Severity.MEDIUM if entropy >= 7.5 else Severity.INFORMATIONAL,
             observed_value=str(round(entropy, 4)),
             expected_value="< 7.5 for typical uncompressed files",
@@ -998,6 +1000,12 @@ def _check_extension_mismatch(ext: str, detected_format: str) -> bool:
         ".elf": {"ELF executable"},
     }
     expected = EXPECT.get(ext)
-    if not expected:
-        return False
-    return detected_format not in expected
+    if expected:
+        return detected_format not in expected
+    if ext in _TEXT_EXTENSIONS:
+        return detected_format in {
+            "PNG image", "JPEG image", "BMP image", "GIF image", "WebP image",
+            "ZIP archive", "GZIP archive", "PDF document", "Windows PE/EXE",
+            "ELF executable", "RAR archive", "7-Zip archive", "MP3 audio", "OGG audio"
+        }
+    return False
