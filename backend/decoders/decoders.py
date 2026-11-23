@@ -476,6 +476,33 @@ class BaconianDecoder(BaseDecoder):
         return None
 
 
+class A1Z26Decoder(BaseDecoder):
+    """
+    A1Z26 letter-number substitution decoder.
+    Converts numbers 1-26 (separated by hyphens, spaces, or commas) to letters.
+    """
+    name = "a1z26"
+    category = "cipher"
+    description = "A1Z26 numerical alphabet position substitution"
+
+    def decode(self, text: str) -> Optional[str]:
+        if not text:
+            return None
+        clean = text.strip()
+        tokens = [t for t in re.split(r'[\s\-,]+', clean) if t]
+        if not tokens or len(tokens) < 2:
+            return None
+        chars = []
+        for t in tokens:
+            if not t.isdigit():
+                return None
+            val = int(t)
+            if not (1 <= val <= 26):
+                return None
+            chars.append(chr(ord('A') + val - 1))
+        return "".join(chars)
+
+
 # Registry
 DECODERS: dict[str, BaseDecoder] = {
     'base64': Base64Decoder(),
@@ -488,6 +515,7 @@ DECODERS: dict[str, BaseDecoder] = {
     'caesar': CaesarDecoder(),
     'atbash': AtbashDecoder(),
     'baconian': BaconianDecoder(),
+    'a1z26': A1Z26Decoder(),
     'morse': MorseDecoder(),
     'url': URLDecoder(),
     'html_entity': HTMLEntityDecoder(),
