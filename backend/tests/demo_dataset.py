@@ -107,6 +107,7 @@ def generate_test_image() -> bytes:
     for idx, bit in enumerate(bits):
         if idx < len(flat_pixels):
             flat_pixels[idx] = (int(flat_pixels[idx]) & 0xFE) | bit
+    arr[:, :, 0] = flat_pixels.reshape(arr.shape[:2])
 
     img_stego = Image.fromarray(arr)
 
