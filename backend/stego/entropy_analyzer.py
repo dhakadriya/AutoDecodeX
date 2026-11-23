@@ -93,19 +93,24 @@ def _chi_square_lsb(arr: np.ndarray) -> float:
     Returns a score 0-1 where higher = more suspicious.
     """
     flat = arr[:, :, :3].flatten()
-    pairs = [(flat[i] & ~1, flat[i] | 1) for i in range(0, len(flat) - 1, 2)]
-
-    chi = 0.0
-    total = len(pairs)
-    if total == 0:
+    if len(flat) < 2:
         return 0.0
 
-    for even, odd in pairs:
-        count_even = int(np.sum(flat == even))
-        count_odd = int(np.sum(flat == odd))
-        expected = (count_even + count_odd) / 2
+    counts = np.bincount(flat.astype(np.int64), minlength=256)
+    chi = 0.0
+    degrees_of_freedom = 0
+
+    for k in range(128):
+        count_even = float(counts[2 * k])
+        count_odd = float(counts[2 * k + 1])
+        expected = (count_even + count_odd) / 2.0
         if expected > 0:
             chi += ((count_even - expected) ** 2) / expected
+            degrees_of_freedom += 1
 
-    # Normalize to 0-1
-    return min(1.0, chi / (total * 10))
+    if degrees_of_freedom == 0:
+        return 0.0
+
+    # Normalize to 0-1 range
+    normalized = chi / (degrees_of_freedom * 2.0 + 1e-6)
+    return float(min(1.0, max(0.0, normalized)))
