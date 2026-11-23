@@ -11,7 +11,7 @@ import pytest
 from backend.decoders.decoders import (
     Base64Decoder, Base32Decoder, Base85Decoder,
     HexDecoder, BinaryDecoder, DecimalAsciiDecoder, OctalDecoder,
-    ROT13Decoder, CaesarDecoder, AtbashDecoder, BaconianDecoder, A1Z26Decoder, MorseDecoder,
+    ROT13Decoder, CaesarDecoder, AtbashDecoder, BaconianDecoder, A1Z26Decoder, BrailleDecoder, MorseDecoder,
     URLDecoder, HTMLEntityDecoder, UnicodeEscapeDecoder,
     XORDecoder, UUDecoder, ZlibDecoder, GzipDecoder,
 )
@@ -485,6 +485,31 @@ class TestOctalDecoder:
     def test_octal_empty(self):
         decoder = OctalDecoder()
         assert decoder.decode("") is None
+
+
+class TestBrailleDecoder:
+    """Test Braille Unicode transcript decoder."""
+
+    def test_braille_basic(self):
+        decoder = BrailleDecoder()
+        assert decoder.decode("⠓⠑⠇⠇⠕") == "hello"
+
+    def test_braille_with_space(self):
+        decoder = BrailleDecoder()
+        assert decoder.decode("⠓⠑⠇⠇⠕⠀⠺⠕⠗⠇⠙") == "hello world"
+
+    def test_braille_with_punctuation(self):
+        decoder = BrailleDecoder()
+        assert decoder.decode("⠓⠑⠇⠇⠕⠂⠀⠺⠕⠗⠇⠙⠖") == "hello, world!"
+
+    def test_braille_non_braille_returns_none(self):
+        decoder = BrailleDecoder()
+        assert decoder.decode("plain text") is None
+
+    def test_braille_empty_returns_none(self):
+        decoder = BrailleDecoder()
+        assert decoder.decode("") is None
+
 
 
 
