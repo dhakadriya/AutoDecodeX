@@ -253,6 +253,28 @@ def detect_baconian(text: str) -> float:
     return 0.0
 
 
+def detect_a1z26(text: str) -> float:
+    """
+    Detect A1Z26 cipher: integers 1-26 separated by hyphens, spaces, or commas.
+    """
+    text = text.strip()
+    if not text or len(text) < 3:
+        return 0.0
+
+    # Hyphen-separated numbers (most common A1Z26 representation)
+    if '-' in text:
+        parts = [p.strip() for p in text.split('-') if p.strip()]
+        if len(parts) >= 2 and all(p.isdigit() and 1 <= int(p) <= 26 for p in parts):
+            return 0.95
+
+    # Space or comma separated numbers
+    tokens = [t.strip() for t in re.split(r'[\s,]+', text) if t.strip()]
+    if len(tokens) >= 3 and all(t.isdigit() and 1 <= int(t) <= 26 for t in tokens):
+        return 0.85
+
+    return 0.0
+
+
 def detect_morse(text: str) -> float:
     text = text.strip()
     # Morse uses dots, dashes, spaces, slashes
@@ -432,6 +454,7 @@ DETECTORS = {
     'caesar': detect_caesar,
     'atbash': detect_atbash,
     'baconian': detect_baconian,
+    'a1z26': detect_a1z26,
     'morse': detect_morse,
     'url': detect_url_encoding,
     'html_entity': detect_html_entity,
