@@ -10,7 +10,7 @@ Tests each decoder with:
 import pytest
 from backend.decoders.decoders import (
     Base64Decoder, Base32Decoder, Base85Decoder,
-    HexDecoder, BinaryDecoder, DecimalAsciiDecoder,
+    HexDecoder, BinaryDecoder, DecimalAsciiDecoder, OctalDecoder,
     ROT13Decoder, CaesarDecoder, AtbashDecoder, BaconianDecoder, A1Z26Decoder, MorseDecoder,
     URLDecoder, HTMLEntityDecoder, UnicodeEscapeDecoder,
     XORDecoder, UUDecoder, ZlibDecoder, GzipDecoder,
@@ -457,6 +457,35 @@ class TestA1Z26Decoder:
     def test_a1z26_empty(self):
         decoder = A1Z26Decoder()
         assert decoder.decode("") is None
+
+
+class TestOctalDecoder:
+    """Test Octal representation decoder."""
+
+    def test_octal_space_separated(self):
+        decoder = OctalDecoder()
+        assert decoder.decode("110 145 154 154 157") == "Hello"
+
+    def test_octal_backslash_prefixed(self):
+        decoder = OctalDecoder()
+        assert decoder.decode(r"\110\145\154\154\157") == "Hello"
+
+    def test_octal_0o_prefixed(self):
+        decoder = OctalDecoder()
+        assert decoder.decode("0o110 0o145 0o154 0o154 0o157") == "Hello"
+
+    def test_octal_invalid_digits(self):
+        decoder = OctalDecoder()
+        assert decoder.decode("118 145") is None
+
+    def test_octal_out_of_range(self):
+        decoder = OctalDecoder()
+        assert decoder.decode("400 145") is None
+
+    def test_octal_empty(self):
+        decoder = OctalDecoder()
+        assert decoder.decode("") is None
+
 
 
 
