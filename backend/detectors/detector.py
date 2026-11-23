@@ -200,6 +200,38 @@ def detect_caesar(text: str) -> float:
     return 0.0
 
 
+def detect_atbash(text: str) -> float:
+    """
+    Detect potential Atbash substitution cipher.
+    Identifies high alpha ratio and matches reciprocal frequency patterns.
+    """
+    text = text.strip()
+    if not text or len(text) < 3:
+        return 0.0
+
+    # Reject if it looks like Base64 padding or symbols
+    if '=' in text or re.search(r'[+/]', text):
+        return 0.0
+
+    # Reject if it looks like standard hex
+    clean = text.replace(' ', '')
+    if re.fullmatch(r'[0-9a-fA-F]+', clean) and len(clean) % 2 == 0 and len(clean) > 8:
+        return 0.0
+
+    alpha_count = sum(1 for c in text if c.isalpha())
+    alpha_ratio = alpha_count / len(text)
+    if alpha_ratio < 0.6:
+        return 0.0
+
+    lower = text.lower()
+    # Signatures: "the" -> "gsv", "hello" -> "svool", "world" -> "dliow", "flag" -> "uozt", "and" -> "zmw"
+    atbash_signatures = ['gsv', 'svool', 'dliow', 'zmw', 'uozt', 'gsrh']
+    if any(sig in lower for sig in atbash_signatures):
+        return 0.85
+
+    return 0.40
+
+
 def detect_morse(text: str) -> float:
     text = text.strip()
     # Morse uses dots, dashes, spaces, slashes
@@ -377,6 +409,7 @@ DETECTORS = {
     'decimal_ascii': detect_decimal_ascii,
     'rot13': detect_rot13,
     'caesar': detect_caesar,
+    'atbash': detect_atbash,
     'morse': detect_morse,
     'url': detect_url_encoding,
     'html_entity': detect_html_entity,
