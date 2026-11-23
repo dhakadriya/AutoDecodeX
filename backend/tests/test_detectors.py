@@ -5,7 +5,7 @@ Tests detection accuracy and confidence scoring for all supported encodings.
 """
 import pytest
 from backend.detectors.detector import (
-    detect_base64, detect_hex, detect_binary,
+    detect_base64, detect_hex, detect_binary, detect_octal,
     detect_rot13, detect_caesar, detect_atbash, detect_baconian, detect_a1z26, detect_morse, detect_url_encoding,
     detect_html_entity, detect_unicode_escape,
     detect_uuencoding, detect_zlib, detect_gzip,
@@ -251,6 +251,25 @@ class TestA1Z26Detection:
 
     def test_reject_plain_text(self):
         assert detect_a1z26("hello world") == 0.0
+
+
+class TestOctalDetection:
+    """Test Octal representation detection."""
+
+    def test_detect_space_separated(self):
+        assert detect_octal("110 145 154 154 157") >= 0.85
+
+    def test_detect_backslash_prefixed(self):
+        assert detect_octal(r"\110\145\154\154\157") >= 0.9
+
+    def test_detect_0o_prefixed(self):
+        assert detect_octal("0o110 0o145 0o154 0o154 0o157") >= 0.85
+
+    def test_reject_invalid_octal_digits(self):
+        assert detect_octal("118 145 154") == 0.0
+
+    def test_reject_empty(self):
+        assert detect_octal("") == 0.0
 
 
 class TestDetectorEdgeCases:
