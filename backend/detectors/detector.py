@@ -275,6 +275,26 @@ def detect_a1z26(text: str) -> float:
     return 0.0
 
 
+def detect_octal(text: str) -> float:
+    """
+    Detect Base-8 octal representation (space-separated or backslash-prefixed).
+    """
+    text = text.strip()
+    if not text or len(text) < 3:
+        return 0.0
+
+    if text.startswith("\\"):
+        parts = [p for p in text.split("\\") if p]
+        if len(parts) >= 2 and all(re.fullmatch(r'[0-7]{1,3}', p) and int(p, 8) <= 255 for p in parts):
+            return 0.95
+
+    tokens = [t.lower().replace("0o", "") for t in text.split() if t]
+    if len(tokens) >= 3 and all(re.fullmatch(r'[0-7]{1,3}', t) and int(t, 8) <= 255 for t in tokens):
+        return 0.88
+
+    return 0.0
+
+
 def detect_morse(text: str) -> float:
     text = text.strip()
     # Morse uses dots, dashes, spaces, slashes
@@ -450,6 +470,7 @@ DETECTORS = {
     'hex': detect_hex,
     'binary': detect_binary,
     'decimal_ascii': detect_decimal_ascii,
+    'octal': detect_octal,
     'rot13': detect_rot13,
     'caesar': detect_caesar,
     'atbash': detect_atbash,
