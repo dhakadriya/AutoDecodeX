@@ -117,6 +117,15 @@ class Base85Decoder(BaseDecoder):
             return None
 
 
+def clean_hex_string(text: str) -> str:
+    """
+    Remove standard hexadecimal prefixes (0x, \\x) and delimiters (space, colon, hyphen, comma).
+    """
+    cleaned = text.strip().replace('0x', '').replace('0X', '').replace('\\x', '').replace('\\X', '')
+    cleaned = re.sub(r'[\s:\-,]+', '', cleaned)
+    return cleaned
+
+
 class HexDecoder(BaseDecoder):
     """
     Hexadecimal decoder with multiple format support.
@@ -128,17 +137,18 @@ class HexDecoder(BaseDecoder):
     - Space/colon/dash separated: 48:65:6c:6c:6f
     """
     name = "hex"
+    category = "encoding"
+    description = "Hexadecimal byte stream decoder with prefix/delimiter stripping"
 
     def decode(self, text: str) -> Optional[str]:
         try:
-            text = text.strip().replace(' ', '').replace('0x', '').replace('\\x', '')
-            text = text.replace(':', '').replace('-', '').replace(',', '')
+            cleaned = clean_hex_string(text)
             
             # Must be even length
-            if not text or len(text) % 2 != 0:
+            if not cleaned or len(cleaned) % 2 != 0:
                 return None
                 
-            raw_bytes = bytes.fromhex(text)
+            raw_bytes = bytes.fromhex(cleaned)
             try:
                 decoded = raw_bytes.decode('utf-8')
             except Exception:
