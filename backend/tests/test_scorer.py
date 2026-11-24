@@ -4,7 +4,12 @@ Unit tests for the text scoring module.
 Tests the readability/plaintext detection scoring system.
 """
 import pytest
-from backend.scoring.scorer import score_text, is_likely_encoded, calculate_ngram_score
+from backend.scoring.scorer import (
+    score_text,
+    is_likely_encoded,
+    calculate_ngram_score,
+    vowel_consonant_ratio,
+)
 
 
 class TestScoreText:
@@ -186,4 +191,25 @@ class TestNgramScoring:
     def test_ngram_exact_trigram_match(self):
         score = calculate_ngram_score("the")
         assert score > 0.5
+
+
+class TestVowelConsonantRatio:
+    """Test vowel-to-consonant ratio heuristic and penalty."""
+
+    def test_vowel_ratio_calculation(self):
+        assert vowel_consonant_ratio("hello") == 0.4
+        assert vowel_consonant_ratio("aeiou") == 1.0
+        assert vowel_consonant_ratio("rhythm") == 0.0
+        assert vowel_consonant_ratio("") == 0.0
+        assert vowel_consonant_ratio("12345!@#") == 0.0
+
+    def test_balanced_text_ratio(self):
+        ratio = vowel_consonant_ratio("The quick brown fox jumps over the lazy dog")
+        assert 0.25 <= ratio <= 0.45
+
+    def test_extreme_vowel_imbalance_penalized(self):
+        consonants = "bcdfghjklmnpqrstvwxz"
+        score_unbalanced = score_text(consonants)
+        assert score_unbalanced < 0.55
+
 
