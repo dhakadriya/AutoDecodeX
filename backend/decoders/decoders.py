@@ -118,6 +118,53 @@ class Base85Decoder(BaseDecoder):
             return None
 
 
+class Base58Decoder(BaseDecoder):
+    """
+    Base58 (Bitcoin alphabet) binary-to-text decoder.
+    Converts Base58 encoded alphanumeric strings into decoded plaintext.
+    """
+    name = "base58"
+    category = "encoding"
+    description = "Base58 Bitcoin alphabet binary-to-text decoder"
+
+    ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+
+    def decode(self, text: str) -> Optional[str]:
+        if not text:
+            return None
+
+        clean = text.strip()
+        if len(clean) < 4:
+            return None
+
+        val = 0
+        for c in clean:
+            idx = self.ALPHABET.find(c)
+            if idx == -1:
+                return None
+            val = val * 58 + idx
+
+        leading_ones = len(clean) - len(clean.lstrip('1'))
+        byte_len = (val.bit_length() + 7) // 8
+        raw_bytes = (b'\x00' * leading_ones) + (val.to_bytes(byte_len, 'big') if val > 0 else b'')
+
+        if not raw_bytes:
+            return None
+
+        try:
+            result = raw_bytes.decode('utf-8')
+        except UnicodeDecodeError:
+            try:
+                result = raw_bytes.decode('latin-1')
+            except Exception:
+                return None
+
+        printable = sum(1 for c in result if c in string.printable and c != '\x00')
+        if len(result) > 0 and printable / len(result) >= 0.70:
+            return result
+        return None
+
+
 def clean_hex_string(text: str) -> str:
     """
     Remove standard hexadecimal prefixes (0x, \\x) and delimiters (space, colon, hyphen, comma).
@@ -1000,6 +1047,7 @@ DECODERS: dict[str, BaseDecoder] = {
     'base64': Base64Decoder(),
     'base32': Base32Decoder(),
     'base85': Base85Decoder(),
+    'base58': Base58Decoder(),
     'hex': HexDecoder(),
     'binary': BinaryDecoder(),
     'decimal_ascii': DecimalAsciiDecoder(),
