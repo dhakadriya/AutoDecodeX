@@ -29,6 +29,17 @@ from typing import Optional, List, Dict, Any
 from .base_decoder import BaseDecoder
 
 
+def normalize_base64_padding(text: str) -> str:
+    """
+    Ensure a Base64 string has proper padding characters ('=').
+    Calculates and appends required '=' padding.
+    """
+    padding = 4 - len(text) % 4
+    if padding != 4:
+        return text + ('=' * padding)
+    return text
+
+
 class Base64Decoder(BaseDecoder):
     """
     Base64 decoder with automatic padding correction.
@@ -36,36 +47,37 @@ class Base64Decoder(BaseDecoder):
     Handles standard Base64, Base64URL, and variants with/without padding.
     """
     name = "base64"
+    category = "encoding"
+    description = "Standard Base64 and Base64URL decoder with automatic padding"
 
     def decode(self, text: str) -> Optional[str]:
         try:
-            text = text.strip()
-            
-            # Skip if too short
-            if len(text) < 4:
+            cleaned = text.strip()
+            if len(cleaned) < 4:
                 return None
-                
-            # Add padding if needed
-            padding = 4 - len(text) % 4
-            if padding != 4:
-                text += '=' * padding
-                
+
+            padded = normalize_base64_padding(cleaned)
+
+            # Reject if contains non-base64 characters
+            if not re.fullmatch(r'[A-Za-z0-9+/=_\-]+', padded):
+                return None
+
             # Try standard Base64 first
             try:
-                raw_bytes = base64.b64decode(text, validate=True)
+                raw_bytes = base64.b64decode(padded, validate=True)
             except Exception:
                 # Try Base64URL variant
-                raw_bytes = base64.urlsafe_b64decode(text)
-                
+                raw_bytes = base64.urlsafe_b64decode(padded)
+
             try:
                 decoded = raw_bytes.decode('utf-8')
             except Exception:
                 decoded = raw_bytes.decode('latin-1')
-                
+
             # Reject if output is just whitespace
             if not decoded.strip():
                 return None
-                
+
             return decoded
         except Exception:
             return None
