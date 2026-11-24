@@ -7,32 +7,19 @@ import uuid
 import re
 from fastapi import HTTPException, UploadFile
 
-# Allowed stego image types: PNG, JPEG, BMP, WebP
-STEGO_ALLOWED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".bmp", ".webp"}
-STEGO_ALLOWED_MIME_TYPES = {
-    "image/png",
-    "image/jpeg",
-    "image/jpg",
-    "image/bmp",
-    "image/webp"
-}
-STEGO_ALLOWED_MAGICS = [
-    b"\x89PNG\r\n\x1a\n",  # PNG
-    b"\xff\xd8\xff",      # JPEG
-    b"BM",                # BMP
-    b"RIFF"               # WebP / WAV (validated specifically below)
-]
-
-# Allowed metadata types (Images + ZIP + PDF + WAV)
-METADATA_ALLOWED_EXTENSIONS = {
-    ".png", ".jpg", ".jpeg", ".bmp", ".webp",
-    ".zip", ".pdf", ".wav"
-}
-METADATA_ALLOWED_MIME_TYPES = {
-    "image/png", "image/jpeg", "image/jpg", "image/bmp", "image/webp",
-    "application/zip", "application/x-zip-compressed",
-    "application/pdf", "audio/wav", "audio/x-wav"
-}
+from backend.stego.constants import (
+    STEGO_ALLOWED_EXTENSIONS,
+    STEGO_ALLOWED_MIME_TYPES,
+    STEGO_ALLOWED_MAGICS,
+    METADATA_ALLOWED_EXTENSIONS,
+    METADATA_ALLOWED_MIME_TYPES,
+    MAGIC_RIFF,
+    MAGIC_WEBP_SUBTYPE,
+    MAGIC_WAV_SUBTYPE,
+    MAGIC_ZIP,
+    MAGIC_ZIP_EMPTY,
+    MAGIC_PDF,
+)
 
 
 def sanitize_filename(filename: str) -> str:
@@ -106,9 +93,9 @@ async def validate_and_save_temp_file(
         for magic in STEGO_ALLOWED_MAGICS:
             if content.startswith(magic):
                 # Specialize RIFF to WebP/WAV checks
-                if magic == b"RIFF":
+                if magic == MAGIC_RIFF:
                     header = content[8:12]
-                    if header in (b"WEBP", b"WAVE"):
+                    if header in (MAGIC_WEBP_SUBTYPE, MAGIC_WAV_SUBTYPE):
                         magic_match = True
                         break
                 else:
@@ -117,7 +104,7 @@ async def validate_and_save_temp_file(
 
         # ZIP & PDF checks
         if ext in (".zip", ".pdf", ".wav") or (file.content_type and "zip" in file.content_type) or (file.content_type and "pdf" in file.content_type):
-            if content.startswith(b"PK\x03\x04") or content.startswith(b"PK\x05\x06") or content.startswith(b"%PDF"):
+            if content.startswith(MAGIC_ZIP) or content.startswith(MAGIC_ZIP_EMPTY) or content.startswith(MAGIC_PDF):
                 magic_match = True
 
         if not magic_match:
