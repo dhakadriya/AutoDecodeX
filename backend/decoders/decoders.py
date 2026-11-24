@@ -163,24 +163,39 @@ class HexDecoder(BaseDecoder):
             return None
 
 
+def parse_binary_bitstream(text: str) -> Optional[bytearray]:
+    """
+    Parse space-separated or continuous 8-bit binary sequences into bytes.
+    """
+    cleaned = text.strip()
+    if not cleaned:
+        return None
+
+    parts = cleaned.split()
+    if parts and all(re.fullmatch(r'[01]{8}', p) for p in parts):
+        return bytearray(int(p, 2) for p in parts)
+
+    continuous = "".join(parts)
+    if re.fullmatch(r'[01]+', continuous) and len(continuous) % 8 == 0:
+        return bytearray(int(continuous[i:i+8], 2) for i in range(0, len(continuous), 8))
+
+    return None
+
+
 class BinaryDecoder(BaseDecoder):
     name = "binary"
+    category = "encoding"
+    description = "8-bit binary representation decoder (space-separated or continuous)"
 
     def decode(self, text: str) -> Optional[str]:
         try:
-            text = text.strip()
-            parts = text.split()
-            if not parts:
+            raw_bytes = parse_binary_bitstream(text)
+            if raw_bytes is None:
                 return None
-            # Handle space-separated bytes
-            if all(re.fullmatch(r'[01]{8}', p) for p in parts):
-                chars = [chr(int(p, 2)) for p in parts]
-                return ''.join(chars)
-            # Handle continuous binary string
-            if re.fullmatch(r'[01]+', text) and len(text) % 8 == 0:
-                chars = [chr(int(text[i:i+8], 2)) for i in range(0, len(text), 8)]
-                return ''.join(chars)
-            return None
+            try:
+                return raw_bytes.decode('utf-8')
+            except UnicodeDecodeError:
+                return raw_bytes.decode('latin-1')
         except Exception:
             return None
 
