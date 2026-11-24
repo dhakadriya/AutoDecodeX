@@ -11,7 +11,7 @@ import pytest
 from backend.decoders.decoders import (
     Base64Decoder, Base32Decoder, Base85Decoder,
     HexDecoder, BinaryDecoder, DecimalAsciiDecoder, OctalDecoder,
-    ROT13Decoder, CaesarDecoder, AtbashDecoder, BaconianDecoder, A1Z26Decoder, BrailleDecoder, MorseDecoder,
+    ROT13Decoder, CaesarDecoder, AtbashDecoder, BaconianDecoder, A1Z26Decoder, BrailleDecoder, ReverseDecoder, MorseDecoder,
     URLDecoder, HTMLEntityDecoder, UnicodeEscapeDecoder,
     XORDecoder, UUDecoder, ZlibDecoder, GzipDecoder,
 )
@@ -509,6 +509,31 @@ class TestBrailleDecoder:
     def test_braille_empty_returns_none(self):
         decoder = BrailleDecoder()
         assert decoder.decode("") is None
+
+
+class TestReverseDecoder:
+    """Test Reverse / mirror text decoder."""
+
+    def test_reverse_basic(self):
+        decoder = ReverseDecoder()
+        assert decoder.decode("dlroW olleH") == "Hello World"
+
+    def test_reverse_flag(self):
+        decoder = ReverseDecoder()
+        assert decoder.decode("}galf_tset{galf") == "flag{test_flag}"
+
+    def test_reverse_palindrome_returns_none(self):
+        decoder = ReverseDecoder()
+        assert decoder.decode("racecar") is None
+
+    def test_reverse_single_char_returns_none(self):
+        decoder = ReverseDecoder()
+        assert decoder.decode("A") is None
+
+    def test_reverse_empty(self):
+        decoder = ReverseDecoder()
+        assert decoder.decode("") is None
+
 
 
 
