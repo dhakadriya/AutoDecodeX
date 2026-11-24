@@ -45,6 +45,18 @@ def calculate_ngram_score(text: str) -> float:
     return bigram_match
 
 
+def vowel_consonant_ratio(text: str) -> float:
+    """
+    Returns the vowel ratio (vowels / total letters) for alphabetic characters in text.
+    Returns 0.0 if there are no alphabetic characters.
+    """
+    letters = [c.lower() for c in text if c.isalpha()]
+    if not letters:
+        return 0.0
+    vowels = sum(1 for c in letters if c in 'aeiou')
+    return vowels / len(letters)
+
+
 def score_text(text: str) -> float:
     """
     Returns a confidence score (0.0 - 1.0) for how likely the text is plaintext.
@@ -134,6 +146,12 @@ def score_text(text: str) -> float:
     if lower_words:
         common_ratio = common_found / len(lower_words)
         score += common_ratio * 0.15
+
+    # 5b. Vowel-to-consonant ratio check for natural language balance
+    if len(letters) >= 8:
+        v_ratio = sum(1 for c in letters if c in 'aeiou') / len(letters)
+        if v_ratio < 0.15 or v_ratio > 0.65:
+            score -= 0.10
 
     # 6. Penalty for high ratio of non-printable or control chars (up to -0.3)
     non_printable = len(text) - printable
