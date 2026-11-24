@@ -9,7 +9,7 @@ Tests each decoder with:
 """
 import pytest
 from backend.decoders.decoders import (
-    Base64Decoder, Base32Decoder, Base85Decoder,
+    Base64Decoder, Base32Decoder, Base85Decoder, Base58Decoder,
     HexDecoder, BinaryDecoder, DecimalAsciiDecoder, OctalDecoder,
     ROT13Decoder, CaesarDecoder, AtbashDecoder, BaconianDecoder, A1Z26Decoder, BrailleDecoder, ReverseDecoder, NATOPhoneticDecoder, VigenereDecoder, AffineDecoder, RailFenceDecoder, PolybiusDecoder, BrainfuckDecoder, MorseDecoder,
     URLDecoder, HTMLEntityDecoder, UnicodeEscapeDecoder,
@@ -742,6 +742,29 @@ class TestBrainfuckDecoder:
     def test_brainfuck_empty_returns_none(self):
         decoder = BrainfuckDecoder()
         assert decoder.decode("") is None
+
+
+class TestBase58Decoder:
+    """Test Base58 Bitcoin alphabet decoding."""
+
+    def test_base58_hello_world(self):
+        decoder = Base58Decoder()
+        result = decoder.decode("JxF12TrwUP45BMd")
+        assert result == "Hello World"
+
+    def test_base58_invalid_characters(self):
+        decoder = Base58Decoder()
+        # 0, O, I, l are excluded from Base58 alphabet
+        assert decoder.decode("0OIlabcd") is None
+
+    def test_base58_short_input(self):
+        decoder = Base58Decoder()
+        assert decoder.decode("JxF") is None
+
+    def test_base58_empty(self):
+        decoder = Base58Decoder()
+        assert decoder.decode("") is None
+
 
 
 
