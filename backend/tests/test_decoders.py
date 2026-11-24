@@ -11,7 +11,7 @@ import pytest
 from backend.decoders.decoders import (
     Base64Decoder, Base32Decoder, Base85Decoder,
     HexDecoder, BinaryDecoder, DecimalAsciiDecoder, OctalDecoder,
-    ROT13Decoder, CaesarDecoder, AtbashDecoder, BaconianDecoder, A1Z26Decoder, BrailleDecoder, ReverseDecoder, MorseDecoder,
+    ROT13Decoder, CaesarDecoder, AtbashDecoder, BaconianDecoder, A1Z26Decoder, BrailleDecoder, ReverseDecoder, NATOPhoneticDecoder, MorseDecoder,
     URLDecoder, HTMLEntityDecoder, UnicodeEscapeDecoder,
     XORDecoder, UUDecoder, ZlibDecoder, GzipDecoder,
 )
@@ -533,6 +533,31 @@ class TestReverseDecoder:
     def test_reverse_empty(self):
         decoder = ReverseDecoder()
         assert decoder.decode("") is None
+
+
+class TestNATOPhoneticDecoder:
+    """Test NATO phonetic spelling alphabet decoder."""
+
+    def test_nato_basic(self):
+        decoder = NATOPhoneticDecoder()
+        assert decoder.decode("Hotel Echo Lima Lima Oscar") == "HELLO"
+
+    def test_nato_mixed_with_digits(self):
+        decoder = NATOPhoneticDecoder()
+        assert decoder.decode("Foxtrot Lima Alfa Golf Seven") == "FLAG7"
+
+    def test_nato_with_punctuation(self):
+        decoder = NATOPhoneticDecoder()
+        assert decoder.decode("Delta, Echo, Charlie, Oscar, Delta, Echo") == "DECODE"
+
+    def test_nato_unmatched_tokens_returns_none(self):
+        decoder = NATOPhoneticDecoder()
+        assert decoder.decode("random non phonetic text words") is None
+
+    def test_nato_empty_returns_none(self):
+        decoder = NATOPhoneticDecoder()
+        assert decoder.decode("") is None
+
 
 
 
