@@ -904,6 +904,80 @@ class PolybiusDecoder(BaseDecoder):
         return " ".join(decoded_words) if decoded_words else None
 
 
+class BrainfuckDecoder(BaseDecoder):
+    """
+    Brainfuck esoteric programming language decoder.
+    Executes valid Brainfuck programs within a safe step-limited virtual machine.
+    """
+    name = "brainfuck"
+    category = "esoteric"
+    description = "Brainfuck esoteric programming language interpreter with execution limits"
+
+    MAX_STEPS = 100000
+    TAPE_SIZE = 3000
+
+    def decode(self, text: str) -> Optional[str]:
+        if not text:
+            return None
+
+        bf_chars = set('><+-.,[]')
+        clean = ''.join(c for c in text if c in bf_chars)
+        non_space = re.sub(r'\s+', '', text)
+        if not non_space or len(clean) < 8 or '.' not in clean:
+            return None
+        if len(clean) / len(non_space) < 0.60:
+            return None
+
+        brackets = {}
+        stack = []
+        for i, c in enumerate(clean):
+            if c == '[':
+                stack.append(i)
+            elif c == ']':
+                if not stack:
+                    return None
+                start = stack.pop()
+                brackets[start] = i
+                brackets[i] = start
+        if stack:
+            return None
+
+        tape = [0] * self.TAPE_SIZE
+        ptr = 0
+        pc = 0
+        steps = 0
+        output = []
+
+        while pc < len(clean) and steps < self.MAX_STEPS:
+            steps += 1
+            cmd = clean[pc]
+            if cmd == '>':
+                ptr = (ptr + 1) % self.TAPE_SIZE
+            elif cmd == '<':
+                ptr = (ptr - 1) % self.TAPE_SIZE
+            elif cmd == '+':
+                tape[ptr] = (tape[ptr] + 1) % 256
+            elif cmd == '-':
+                tape[ptr] = (tape[ptr] - 1) % 256
+            elif cmd == '.':
+                output.append(chr(tape[ptr]))
+            elif cmd == '[':
+                if tape[ptr] == 0:
+                    pc = brackets[pc]
+            elif cmd == ']':
+                if tape[ptr] != 0:
+                    pc = brackets[pc]
+            pc += 1
+
+        if not output:
+            return None
+
+        result = "".join(output)
+        if any(c in string.printable for c in result):
+            return result
+        return None
+
+
 # Registry
 DECODERS: dict[str, BaseDecoder] = {
     'base64': Base64Decoder(),
@@ -925,6 +999,7 @@ DECODERS: dict[str, BaseDecoder] = {
     'affine': AffineDecoder(),
     'rail_fence': RailFenceDecoder(),
     'polybius': PolybiusDecoder(),
+    'brainfuck': BrainfuckDecoder(),
     'morse': MorseDecoder(),
     'url': URLDecoder(),
     'html_entity': HTMLEntityDecoder(),
