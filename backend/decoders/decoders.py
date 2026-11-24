@@ -666,6 +666,62 @@ class NATOPhoneticDecoder(BaseDecoder):
         return "".join(self.NATO_MAP.get(t, t) for t in tokens)
 
 
+class VigenereDecoder(BaseDecoder):
+    """
+    Vigenere polyalphabetic substitution cipher decoder.
+    Decrypts ciphertext using a repeating keyword.
+    Preserves case and non-alphabetic characters.
+    """
+    name = "vigenere"
+    category = "cipher"
+    description = "Vigenere polyalphabetic substitution cipher decoder"
+
+    DEFAULT_KEYS = ["KEY", "SECRET", "FLAG", "CIPHER", "PASS", "PASSWORD", "CRYPTO", "ADMIN"]
+
+    @staticmethod
+    def decrypt_with_key(text: str, key: str) -> str:
+        """Decrypts ciphertext using the specified alphabetic key."""
+        clean_key = [c.upper() for c in key if c.isalpha()]
+        if not clean_key:
+            return text
+
+        result = []
+        key_idx = 0
+        key_len = len(clean_key)
+
+        for char in text:
+            if char.isalpha():
+                shift = ord(clean_key[key_idx % key_len]) - ord('A')
+                base = ord('A') if char.isupper() else ord('a')
+                decrypted_char = chr((ord(char) - base - shift) % 26 + base)
+                result.append(decrypted_char)
+                key_idx += 1
+            else:
+                result.append(char)
+        return "".join(result)
+
+    def decode(self, text: str, key: Optional[str] = None) -> Optional[str]:
+        if not text or not any(c.isalpha() for c in text):
+            return None
+
+        if key:
+            decrypted = self.decrypt_with_key(text, key)
+            return decrypted if decrypted != text else None
+
+        from backend.scoring.scorer import score_text
+        best_candidate = None
+        best_score = 0.55
+
+        for cand_key in self.DEFAULT_KEYS:
+            decrypted = self.decrypt_with_key(text, cand_key)
+            cand_score = score_text(decrypted)
+            if cand_score > best_score:
+                best_score = cand_score
+                best_candidate = decrypted
+
+        return best_candidate
+
+
 # Registry
 DECODERS: dict[str, BaseDecoder] = {
     'base64': Base64Decoder(),
@@ -683,6 +739,7 @@ DECODERS: dict[str, BaseDecoder] = {
     'braille': BrailleDecoder(),
     'reverse': ReverseDecoder(),
     'nato': NATOPhoneticDecoder(),
+    'vigenere': VigenereDecoder(),
     'morse': MorseDecoder(),
     'url': URLDecoder(),
     'html_entity': HTMLEntityDecoder(),
