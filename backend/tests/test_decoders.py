@@ -11,7 +11,7 @@ import pytest
 from backend.decoders.decoders import (
     Base64Decoder, Base32Decoder, Base85Decoder,
     HexDecoder, BinaryDecoder, DecimalAsciiDecoder, OctalDecoder,
-    ROT13Decoder, CaesarDecoder, AtbashDecoder, BaconianDecoder, A1Z26Decoder, BrailleDecoder, ReverseDecoder, NATOPhoneticDecoder, VigenereDecoder, MorseDecoder,
+    ROT13Decoder, CaesarDecoder, AtbashDecoder, BaconianDecoder, A1Z26Decoder, BrailleDecoder, ReverseDecoder, NATOPhoneticDecoder, VigenereDecoder, AffineDecoder, MorseDecoder,
     URLDecoder, HTMLEntityDecoder, UnicodeEscapeDecoder,
     XORDecoder, UUDecoder, ZlibDecoder, GzipDecoder,
 )
@@ -588,6 +588,38 @@ class TestVigenereDecoder:
         decoder = VigenereDecoder()
         assert decoder.decode("") is None
         assert decoder.decode("12345!@#$") is None
+
+
+class TestAffineDecoder:
+    """Test Affine cipher decoder with explicit parameters and brute force search."""
+
+    def test_affine_decrypt_explicit(self):
+        # E(x) = (5*x + 8) mod 26
+        ciphertext = "rclla oaplx zrwu wu i ucspcz hlim"
+        result = AffineDecoder.decrypt(ciphertext, 5, 8)
+        assert result == "hello world this is a secret flag"
+
+    def test_affine_case_and_punctuation(self):
+        result = AffineDecoder.decrypt("Rclla, Oaplx!", 5, 8)
+        assert result == "Hello, World!"
+
+    def test_affine_decode_explicit_params(self):
+        decoder = AffineDecoder()
+        result = decoder.decode("rclla oaplx", a=5, b=8)
+        assert result == "hello world"
+
+    def test_affine_decode_brute_force(self):
+        decoder = AffineDecoder()
+        ciphertext = "rclla oaplx zrwu wu i ucspcz hlim"
+        result = decoder.decode(ciphertext)
+        assert result is not None
+        assert result == "hello world this is a secret flag"
+
+    def test_affine_invalid_inputs(self):
+        decoder = AffineDecoder()
+        assert decoder.decode("") is None
+        assert decoder.decode("12345!@#$") is None
+
 
 
 
