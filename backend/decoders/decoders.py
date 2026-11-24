@@ -845,6 +845,65 @@ class RailFenceDecoder(BaseDecoder):
         return best_candidate
 
 
+class PolybiusDecoder(BaseDecoder):
+    """
+    Polybius square 5x5 coordinate cipher decoder.
+    Decodes coordinate pairs (1-5 or 0-4) into letters (A-Z, with I/J mapped to I).
+    Supports space, hyphen, comma, slash delimited tokens and continuous digit streams.
+    """
+    name = "polybius"
+    category = "cipher"
+    description = "Polybius square 5x5 coordinate cipher decoder"
+
+    POLYBIUS_1 = {
+        '11': 'A', '12': 'B', '13': 'C', '14': 'D', '15': 'E',
+        '21': 'F', '22': 'G', '23': 'H', '24': 'I', '25': 'K',
+        '31': 'L', '32': 'M', '33': 'N', '34': 'O', '35': 'P',
+        '41': 'Q', '42': 'R', '43': 'S', '44': 'T', '45': 'U',
+        '51': 'V', '52': 'W', '53': 'X', '54': 'Y', '55': 'Z',
+    }
+
+    POLYBIUS_0 = {
+        '00': 'A', '01': 'B', '02': 'C', '03': 'D', '04': 'E',
+        '10': 'F', '11': 'G', '12': 'H', '13': 'I', '14': 'K',
+        '20': 'L', '21': 'M', '22': 'N', '23': 'O', '24': 'P',
+        '30': 'Q', '31': 'R', '32': 'S', '33': 'T', '34': 'U',
+        '40': 'V', '41': 'W', '42': 'X', '43': 'Y', '44': 'Z',
+    }
+
+    def decode(self, text: str) -> Optional[str]:
+        if not text:
+            return None
+
+        clean = text.strip()
+        words = re.split(r'\s*/\s*|\s{2,}', clean) if ('/' in clean or '  ' in clean) else [clean]
+        decoded_words = []
+
+        for word in words:
+            tokens = [t.strip() for t in re.split(r'[\s,\-]+', word.strip()) if t.strip()]
+            if len(tokens) >= 2 and all(len(t) == 2 and t.isdigit() for t in tokens):
+                if all(t in self.POLYBIUS_1 for t in tokens):
+                    decoded_words.append("".join(self.POLYBIUS_1[t] for t in tokens))
+                elif all(t in self.POLYBIUS_0 for t in tokens):
+                    decoded_words.append("".join(self.POLYBIUS_0[t] for t in tokens))
+                else:
+                    return None
+            else:
+                digits = re.sub(r'\s+', '', word)
+                if len(digits) >= 4 and len(digits) % 2 == 0 and digits.isdigit():
+                    pairs = [digits[i:i+2] for i in range(0, len(digits), 2)]
+                    if all(p in self.POLYBIUS_1 for p in pairs):
+                        decoded_words.append("".join(self.POLYBIUS_1[p] for p in pairs))
+                    elif all(p in self.POLYBIUS_0 for p in pairs):
+                        decoded_words.append("".join(self.POLYBIUS_0[p] for p in pairs))
+                    else:
+                        return None
+                else:
+                    return None
+
+        return " ".join(decoded_words) if decoded_words else None
+
+
 # Registry
 DECODERS: dict[str, BaseDecoder] = {
     'base64': Base64Decoder(),
@@ -865,6 +924,7 @@ DECODERS: dict[str, BaseDecoder] = {
     'vigenere': VigenereDecoder(),
     'affine': AffineDecoder(),
     'rail_fence': RailFenceDecoder(),
+    'polybius': PolybiusDecoder(),
     'morse': MorseDecoder(),
     'url': URLDecoder(),
     'html_entity': HTMLEntityDecoder(),
