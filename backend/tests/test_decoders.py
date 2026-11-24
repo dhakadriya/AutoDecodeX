@@ -11,7 +11,7 @@ import pytest
 from backend.decoders.decoders import (
     Base64Decoder, Base32Decoder, Base85Decoder,
     HexDecoder, BinaryDecoder, DecimalAsciiDecoder, OctalDecoder,
-    ROT13Decoder, CaesarDecoder, AtbashDecoder, BaconianDecoder, A1Z26Decoder, BrailleDecoder, ReverseDecoder, NATOPhoneticDecoder, VigenereDecoder, AffineDecoder, RailFenceDecoder, PolybiusDecoder, MorseDecoder,
+    ROT13Decoder, CaesarDecoder, AtbashDecoder, BaconianDecoder, A1Z26Decoder, BrailleDecoder, ReverseDecoder, NATOPhoneticDecoder, VigenereDecoder, AffineDecoder, RailFenceDecoder, PolybiusDecoder, BrainfuckDecoder, MorseDecoder,
     URLDecoder, HTMLEntityDecoder, UnicodeEscapeDecoder,
     XORDecoder, UUDecoder, ZlibDecoder, GzipDecoder,
 )
@@ -689,6 +689,43 @@ class TestPolybiusDecoder:
     def test_polybius_empty(self):
         decoder = PolybiusDecoder()
         assert decoder.decode("") is None
+
+
+class TestBrainfuckDecoder:
+    """Test Brainfuck esoteric programming language execution and decoding."""
+
+    def test_brainfuck_hello_world(self):
+        decoder = BrainfuckDecoder()
+        code = "++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++."
+        result = decoder.decode(code)
+        assert result is not None
+        assert "Hello World!" in result
+
+    def test_brainfuck_single_char(self):
+        decoder = BrainfuckDecoder()
+        # 65 '+' chars followed by '.' outputs 'A'
+        code = "+" * 65 + "."
+        result = decoder.decode(code)
+        assert result == "A"
+
+    def test_brainfuck_unbalanced_brackets_returns_none(self):
+        decoder = BrainfuckDecoder()
+        assert decoder.decode("++[++..") is None
+        assert decoder.decode("++..]") is None
+
+    def test_brainfuck_infinite_loop_safety_cap(self):
+        decoder = BrainfuckDecoder()
+        # Infinite loop: +[] will exceed MAX_STEPS and terminate safely
+        assert decoder.decode("+[]") is None
+
+    def test_brainfuck_normal_prose_returns_none(self):
+        decoder = BrainfuckDecoder()
+        assert decoder.decode("This is a standard English sentence with some dots...") is None
+
+    def test_brainfuck_empty_returns_none(self):
+        decoder = BrainfuckDecoder()
+        assert decoder.decode("") is None
+
 
 
 

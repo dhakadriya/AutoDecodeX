@@ -25,6 +25,7 @@ import re
 import codecs
 import zlib
 import gzip
+import string
 from typing import Optional, List, Dict, Any
 from .base_decoder import BaseDecoder
 
