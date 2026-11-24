@@ -295,6 +295,26 @@ def detect_octal(text: str) -> float:
     return 0.0
 
 
+def detect_braille(text: str) -> float:
+    """
+    Detect Braille Unicode transcript patterns (U+2800..U+28FF).
+    """
+    text = text.strip()
+    if not text:
+        return 0.0
+
+    braille_count = sum(1 for c in text if '\u2800' <= c <= '\u28ff')
+    if braille_count == 0:
+        return 0.0
+
+    ratio = braille_count / len(text)
+    if ratio >= 0.7:
+        return 0.98
+    elif braille_count >= 3 or ratio >= 0.2:
+        return 0.75
+    return 0.0
+
+
 def detect_morse(text: str) -> float:
     text = text.strip()
     # Morse uses dots, dashes, spaces, slashes
@@ -476,6 +496,7 @@ DETECTORS = {
     'atbash': detect_atbash,
     'baconian': detect_baconian,
     'a1z26': detect_a1z26,
+    'braille': detect_braille,
     'morse': detect_morse,
     'url': detect_url_encoding,
     'html_entity': detect_html_entity,
