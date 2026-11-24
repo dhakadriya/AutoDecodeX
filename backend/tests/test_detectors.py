@@ -5,7 +5,7 @@ Tests detection accuracy and confidence scoring for all supported encodings.
 """
 import pytest
 from backend.detectors.detector import (
-    detect_base64, detect_hex, detect_binary, detect_octal,
+    detect_base64, detect_base32, detect_base85, detect_base58, detect_hex, detect_binary, detect_octal,
     detect_rot13, detect_caesar, detect_atbash, detect_baconian, detect_a1z26, detect_braille, detect_nato, detect_morse, detect_url_encoding,
     detect_html_entity, detect_unicode_escape,
     detect_uuencoding, detect_zlib, detect_gzip,
@@ -302,6 +302,35 @@ class TestNATODetection:
 
     def test_reject_empty(self):
         assert detect_nato("") == 0.0
+
+
+class TestBase58Detection:
+    """Test Base58 encoding detection accuracy."""
+
+    def test_detect_valid_base58(self):
+        confidence = detect_base58("JxF12TrwUP45BMd")
+        assert confidence >= 0.80
+
+    def test_detect_bitcoin_address(self):
+        confidence = detect_base58("1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa")
+        assert confidence >= 0.90
+
+    def test_detect_ipfs_cid(self):
+        confidence = detect_base58("QmXoypizjW3WknFiJnKLwHCnL72vedxjQkDDP1mXWo6uco")
+        assert confidence >= 0.95
+
+    def test_reject_invalid_chars(self):
+        # 0, O, I, l are forbidden in Base58
+        assert detect_base58("JxF12Trw0P45BMd") == 0.0
+        assert detect_base58("JxF12TrwOP45BMd") == 0.0
+        assert detect_base58("JxF12TrwIP45BMd") == 0.0
+        assert detect_base58("JxF12TrwlP45BMd") == 0.0
+
+    def test_reject_short_input(self):
+        assert detect_base58("abc") == 0.0
+
+    def test_reject_empty(self):
+        assert detect_base58("") == 0.0
 
 
 class TestDetectorEdgeCases:
