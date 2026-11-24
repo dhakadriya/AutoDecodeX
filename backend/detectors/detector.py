@@ -95,6 +95,31 @@ def detect_base85(text: str) -> float:
     return 0.0
 
 
+def detect_base58(text: str) -> float:
+    clean = text.strip()
+    if not clean or len(clean) < 6:
+        return 0.0
+    if not re.fullmatch(r'[1-9A-HJ-NP-Za-km-z]+', clean):
+        return 0.0
+
+    # Bitcoin standard addresses (P2PKH, P2SH)
+    if (clean[0] in '13') and (26 <= len(clean) <= 35):
+        return 0.95
+    # IPFS CIDv0 hash
+    if clean.startswith('Qm') and len(clean) == 46:
+        return 0.98
+
+    has_digits = any(c.isdigit() for c in clean)
+    has_upper = any(c.isupper() for c in clean)
+    has_lower = any(c.islower() for c in clean)
+
+    if has_digits and has_upper and has_lower:
+        return 0.82
+    elif (has_digits and (has_upper or has_lower)) or (has_upper and has_lower):
+        return 0.50
+    return 0.20
+
+
 def detect_hex(text: str) -> float:
     text = text.strip().replace(' ', '').replace('0x', '')
     if not re.fullmatch(r'[0-9a-fA-F]+', text):
@@ -517,6 +542,7 @@ DETECTORS = {
     'base64': detect_base64,
     'base32': detect_base32,
     'base85': detect_base85,
+    'base58': detect_base58,
     'hex': detect_hex,
     'binary': detect_binary,
     'decimal_ascii': detect_decimal_ascii,
