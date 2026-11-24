@@ -27,6 +27,24 @@ from .constants import (
 ENGLISH_FREQ = ENGLISH_LETTER_FREQ
 
 
+def calculate_ngram_score(text: str) -> float:
+    """
+    Calculates proportion of common English bigrams and trigrams in text.
+    Returns a normalized score between 0.0 and 1.0.
+    """
+    clean = re.sub(r'[^a-z]', '', text.lower())
+    if len(clean) < 2:
+        return 0.0
+    bigrams = [clean[i:i+2] for i in range(len(clean) - 1)]
+    bigram_match = sum(1 for bg in bigrams if bg in ENGLISH_BIGRAMS) / len(bigrams) if bigrams else 0.0
+
+    if len(clean) >= 3:
+        trigrams = [clean[i:i+3] for i in range(len(clean) - 2)]
+        trigram_match = sum(1 for tg in trigrams if tg in ENGLISH_TRIGRAMS) / len(trigrams) if trigrams else 0.0
+        return 0.6 * bigram_match + 0.4 * trigram_match
+    return bigram_match
+
+
 def score_text(text: str) -> float:
     """
     Returns a confidence score (0.0 - 1.0) for how likely the text is plaintext.
@@ -65,7 +83,11 @@ def score_text(text: str) -> float:
             diff = abs(actual_freq - expected_freq)
             freq_score += max(0, 1 - diff / 15)
         freq_score = freq_score / len(ENGLISH_FREQ)
-        score += freq_score * 0.30
+        score += freq_score * 0.25
+
+        # English n-gram frequency bonus (bigrams and trigrams, 5% weight)
+        if len(letters) >= 2:
+            score += calculate_ngram_score(text) * 0.05
     else:
         # No letters at all — might be valid (numbers/symbols) but moderate
         score += 0.05
