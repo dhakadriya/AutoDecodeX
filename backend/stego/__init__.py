@@ -5,5 +5,7 @@ from .text_stego import (
     detect_zero_width_stego,
     encode_zero_width,
     extract_zero_width_payload,
+    detect_homoglyphs,
+    normalize_homoglyphs,
 )
 from .metadata_analyzer import extract_metadata, analyze_metadata, full_metadata_pipeline

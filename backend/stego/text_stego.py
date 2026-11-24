@@ -27,6 +27,61 @@ WHITESPACE_MAP = {
     "\t": "1",  # tab → 1
 }
 
+# Common Latin-lookalike Unicode homoglyphs from Cyrillic and Greek blocks
+HOMOGLYPH_MAP: dict[str, str] = {
+    # Cyrillic lowercase lookalikes
+    "\u0430": "a", "\u0435": "e", "\u043e": "o", "\u0440": "p",
+    "\u0441": "c", "\u0443": "y", "\u0445": "x", "\u0456": "i",
+    "\u0458": "j", "\u0455": "s", "\u0432": "b", "\u043d": "h",
+    # Cyrillic uppercase lookalikes
+    "\u0410": "A", "\u0412": "B", "\u0415": "E", "\u041a": "K",
+    "\u041c": "M", "\u041d": "H", "\u041e": "O", "\u0420": "P",
+    "\u0421": "C", "\u0422": "T", "\u0423": "Y", "\u0425": "X",
+    # Greek lookalikes
+    "\u0391": "A", "\u0392": "B", "\u0395": "E", "\u0397": "H",
+    "\u0399": "I", "\u039a": "K", "\u039c": "M", "\u039d": "N",
+    "\u039f": "O", "\u03a1": "P", "\u03a4": "T", "\u03a7": "X",
+    "\u03bf": "o", "\u03c1": "p",
+}
+
+
+def detect_homoglyphs(text: str) -> dict:
+    """
+    Detect non-ASCII Unicode homoglyphs that mimic standard Latin characters.
+    Returns findings including character count, positions, and confidence score.
+    """
+    if not text:
+        return {"found": False, "count": 0, "confidence": 0.0, "homoglyphs": []}
+
+    findings = []
+    for i, ch in enumerate(text):
+        if ch in HOMOGLYPH_MAP:
+            findings.append({
+                "index": i,
+                "char": ch,
+                "codepoint": hex(ord(ch)),
+                "ascii_equivalent": HOMOGLYPH_MAP[ch],
+            })
+
+    count = len(findings)
+    confidence = 0.95 if count >= 3 else (0.85 if count >= 1 else 0.0)
+
+    return {
+        "found": count > 0,
+        "count": count,
+        "confidence": confidence,
+        "homoglyphs": findings[:50],
+    }
+
+
+def normalize_homoglyphs(text: str) -> str:
+    """
+    Replace identified Unicode homoglyphs with their standard ASCII equivalents.
+    """
+    if not text:
+        return ""
+    return "".join(HOMOGLYPH_MAP.get(c, c) for c in text)
+
 
 def detect_zero_width_stego(text: str) -> float:
     """
@@ -96,6 +151,7 @@ def extract_text_stego(text: str) -> dict:
         "whitespace": _extract_whitespace(text),
         "first_letters": _extract_acrostic(text),
         "unicode_hidden": _find_unicode_anomalies(text),
+        "homoglyphs": detect_homoglyphs(text),
         "invisible_chars_found": _count_invisible(text),
     }
     return results
