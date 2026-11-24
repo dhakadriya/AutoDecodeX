@@ -13,7 +13,7 @@ This scoring is crucial for determining when recursive decoding should stop.
 """
 import re
 import string
-from typing import Set
+from typing import Set, List, Optional
 
 from .constants import (
     ENGLISH_LETTER_FREQ,
@@ -68,6 +68,21 @@ def punctuation_ratio(text: str) -> float:
     return punct_count / len(text)
 
 
+def check_ctf_flag(text: str, custom_patterns: Optional[List[str]] = None) -> Optional[str]:
+    """
+    Checks if the text contains a CTF flag matching standard or custom regex patterns.
+    Returns the first matching flag string found, or None if no match.
+    """
+    if not text:
+        return None
+    patterns = (custom_patterns or []) + CTF_FLAG_PATTERNS
+    for pattern in patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            return match.group(0)
+    return None
+
+
 def score_text(text: str) -> float:
     """
     Returns a confidence score (0.0 - 1.0) for how likely the text is plaintext.
@@ -86,9 +101,8 @@ def score_text(text: str) -> float:
     score = 0.0
 
     # 1. CTF flag pattern match → instant high score
-    for pattern in CTF_FLAG_PATTERNS:
-        if re.search(pattern, text, re.IGNORECASE):
-            return 0.99
+    if check_ctf_flag(text):
+        return 0.99
 
     # 2. Printable character ratio (30% weight)
     printable = sum(1 for c in text if c in string.printable)
