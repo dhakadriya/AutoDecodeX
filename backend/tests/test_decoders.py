@@ -11,7 +11,7 @@ import pytest
 from backend.decoders.decoders import (
     Base64Decoder, Base32Decoder, Base85Decoder,
     HexDecoder, BinaryDecoder, DecimalAsciiDecoder, OctalDecoder,
-    ROT13Decoder, CaesarDecoder, AtbashDecoder, BaconianDecoder, A1Z26Decoder, BrailleDecoder, ReverseDecoder, NATOPhoneticDecoder, VigenereDecoder, AffineDecoder, RailFenceDecoder, MorseDecoder,
+    ROT13Decoder, CaesarDecoder, AtbashDecoder, BaconianDecoder, A1Z26Decoder, BrailleDecoder, ReverseDecoder, NATOPhoneticDecoder, VigenereDecoder, AffineDecoder, RailFenceDecoder, PolybiusDecoder, MorseDecoder,
     URLDecoder, HTMLEntityDecoder, UnicodeEscapeDecoder,
     XORDecoder, UUDecoder, ZlibDecoder, GzipDecoder,
 )
@@ -653,6 +653,43 @@ class TestRailFenceDecoder:
         decoder = RailFenceDecoder()
         assert decoder.decode("") is None
         assert decoder.decode("abc") is None
+
+
+class TestPolybiusDecoder:
+    """Test Polybius square coordinate cipher decoding."""
+
+    def test_polybius_space_separated(self):
+        decoder = PolybiusDecoder()
+        assert decoder.decode("23 15 31 31 34") == "HELLO"
+
+    def test_polybius_continuous_digits(self):
+        decoder = PolybiusDecoder()
+        assert decoder.decode("2315313134") == "HELLO"
+
+    def test_polybius_hyphen_separated(self):
+        decoder = PolybiusDecoder()
+        assert decoder.decode("23-15-31-31-34") == "HELLO"
+
+    def test_polybius_words_with_slash(self):
+        decoder = PolybiusDecoder()
+        assert decoder.decode("23 15 31 31 34 / 52 34 42 31 14") == "HELLO WORLD"
+
+    def test_polybius_zero_indexed(self):
+        decoder = PolybiusDecoder()
+        assert decoder.decode("00 01 02") == "ABC"
+
+    def test_polybius_out_of_range_digits(self):
+        decoder = PolybiusDecoder()
+        assert decoder.decode("26 15 31") is None
+
+    def test_polybius_odd_continuous_length(self):
+        decoder = PolybiusDecoder()
+        assert decoder.decode("231") is None
+
+    def test_polybius_empty(self):
+        decoder = PolybiusDecoder()
+        assert decoder.decode("") is None
+
 
 
 
