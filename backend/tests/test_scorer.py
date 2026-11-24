@@ -9,6 +9,7 @@ from backend.scoring.scorer import (
     is_likely_encoded,
     calculate_ngram_score,
     vowel_consonant_ratio,
+    punctuation_ratio,
 )
 
 
@@ -211,5 +212,29 @@ class TestVowelConsonantRatio:
         consonants = "bcdfghjklmnpqrstvwxz"
         score_unbalanced = score_text(consonants)
         assert score_unbalanced < 0.55
+
+
+class TestPunctuationRatio:
+    """Test punctuation and symbol ratio calculation and penalty."""
+
+    def test_punctuation_ratio_empty(self):
+        assert punctuation_ratio("") == 0.0
+
+    def test_punctuation_ratio_none_present(self):
+        assert punctuation_ratio("HelloWorld") == 0.0
+
+    def test_punctuation_ratio_calculation(self):
+        ratio = punctuation_ratio("Hello, world!")
+        assert 0.15 <= ratio <= 0.16  # 2 / 13
+
+    def test_punctuation_ratio_all_symbols(self):
+        assert punctuation_ratio("!@#$%^&*()") == 1.0
+
+    def test_excessive_punctuation_penalized(self):
+        text_with_excess_punct = "a!@#$%^&*()_+{}[]:;<>,.?/~"
+        score = score_text(text_with_excess_punct)
+        assert score < 0.62
+        assert score < score_text("Hello World")
+
 
 
