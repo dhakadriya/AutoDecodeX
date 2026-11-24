@@ -11,7 +11,7 @@ import pytest
 from backend.decoders.decoders import (
     Base64Decoder, Base32Decoder, Base85Decoder,
     HexDecoder, BinaryDecoder, DecimalAsciiDecoder, OctalDecoder,
-    ROT13Decoder, CaesarDecoder, AtbashDecoder, BaconianDecoder, A1Z26Decoder, BrailleDecoder, ReverseDecoder, NATOPhoneticDecoder, MorseDecoder,
+    ROT13Decoder, CaesarDecoder, AtbashDecoder, BaconianDecoder, A1Z26Decoder, BrailleDecoder, ReverseDecoder, NATOPhoneticDecoder, VigenereDecoder, MorseDecoder,
     URLDecoder, HTMLEntityDecoder, UnicodeEscapeDecoder,
     XORDecoder, UUDecoder, ZlibDecoder, GzipDecoder,
 )
@@ -557,6 +557,38 @@ class TestNATOPhoneticDecoder:
     def test_nato_empty_returns_none(self):
         decoder = NATOPhoneticDecoder()
         assert decoder.decode("") is None
+
+
+class TestVigenereDecoder:
+    """Test Vigenere cipher decoding with explicit keys and candidate keys."""
+
+    def test_vigenere_decrypt_with_key_basic(self):
+        # Ciphertext "LXFOPVEFRNHR" encrypted from "ATTACKATDAWN" with key "LEMON"
+        result = VigenereDecoder.decrypt_with_key("LXFOPVEFRNHR", "LEMON")
+        assert result == "ATTACKATDAWN"
+
+    def test_vigenere_case_and_punctuation(self):
+        result = VigenereDecoder.decrypt_with_key("Lxfopv, Efrnhr!", "lemon")
+        assert result == "Attack, Atdawn!"
+
+    def test_vigenere_decode_with_explicit_key(self):
+        decoder = VigenereDecoder()
+        result = decoder.decode("LXFOPVEFRNHR", key="LEMON")
+        assert result == "ATTACKATDAWN"
+
+    def test_vigenere_decode_with_default_key(self):
+        decoder = VigenereDecoder()
+        # Plaintext "the secret key is hidden here" with key "KEY"
+        ciphertext = "dlc ciabir uiw sw fshbor fovc"
+        result = decoder.decode(ciphertext)
+        assert result is not None
+        assert "secret" in result.lower()
+
+    def test_vigenere_invalid_inputs(self):
+        decoder = VigenereDecoder()
+        assert decoder.decode("") is None
+        assert decoder.decode("12345!@#$") is None
+
 
 
 
