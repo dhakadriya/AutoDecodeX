@@ -6,7 +6,7 @@ Tests detection accuracy and confidence scoring for all supported encodings.
 import pytest
 from backend.detectors.detector import (
     detect_base64, detect_hex, detect_binary, detect_octal,
-    detect_rot13, detect_caesar, detect_atbash, detect_baconian, detect_a1z26, detect_braille, detect_morse, detect_url_encoding,
+    detect_rot13, detect_caesar, detect_atbash, detect_baconian, detect_a1z26, detect_braille, detect_nato, detect_morse, detect_url_encoding,
     detect_html_entity, detect_unicode_escape,
     detect_uuencoding, detect_zlib, detect_gzip,
     detect_md5, detect_sha1, detect_sha224, detect_sha256,
@@ -286,6 +286,22 @@ class TestBrailleDetection:
 
     def test_reject_empty(self):
         assert detect_braille("") == 0.0
+
+
+class TestNATODetection:
+    """Test NATO phonetic spelling alphabet detection."""
+
+    def test_detect_nato_full(self):
+        assert detect_nato("Hotel Echo Lima Lima Oscar") >= 0.9
+
+    def test_detect_nato_with_punctuation(self):
+        assert detect_nato("Alpha, Bravo, Charlie, Delta") >= 0.8
+
+    def test_reject_unrelated_text(self):
+        assert detect_nato("This is standard text that does not use phonetic words") == 0.0
+
+    def test_reject_empty(self):
+        assert detect_nato("") == 0.0
 
 
 class TestDetectorEdgeCases:
