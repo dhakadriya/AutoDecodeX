@@ -202,15 +202,31 @@ class BinaryDecoder(BaseDecoder):
 
 
 class DecimalAsciiDecoder(BaseDecoder):
+    """
+    Decimal ASCII code sequence decoder.
+    Converts decimal integer byte values (0-255) into decoded text.
+    Supports space, comma, semicolon, and hyphen delimiters.
+    """
     name = "decimal_ascii"
+    category = "encoding"
+    description = "Decimal ASCII byte code sequence decoder"
 
     def decode(self, text: str) -> Optional[str]:
+        if not text:
+            return None
         try:
-            parts = text.strip().split()
-            nums = [int(p) for p in parts]
-            if not all(0 <= n <= 127 for n in nums):
+            clean = text.strip()
+            parts = [p.strip() for p in re.split(r'[,;\s\-]+', clean) if p.strip()]
+            if not parts:
                 return None
-            return ''.join(chr(n) for n in nums)
+            nums = [int(p) for p in parts]
+            if not all(0 <= n <= 255 for n in nums):
+                return None
+            raw_bytes = bytes(nums)
+            try:
+                return raw_bytes.decode('utf-8')
+            except UnicodeDecodeError:
+                return raw_bytes.decode('latin-1')
         except Exception:
             return None
 
