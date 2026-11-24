@@ -315,6 +315,36 @@ def detect_braille(text: str) -> float:
     return 0.0
 
 
+def detect_nato(text: str) -> float:
+    """
+    Detect NATO phonetic spelling alphabet transcript sequences.
+    """
+    text = text.strip()
+    if not text:
+        return 0.0
+
+    nato_words = {
+        'ALFA', 'ALPHA', 'BRAVO', 'CHARLIE', 'DELTA', 'ECHO', 'FOXTROT',
+        'GOLF', 'HOTEL', 'INDIA', 'JULIETT', 'JULIET', 'KILO', 'LIMA',
+        'MIKE', 'NOVEMBER', 'OSCAR', 'PAPA', 'QUEBEC', 'ROMEO', 'SIERRA',
+        'TANGO', 'UNIFORM', 'VICTOR', 'WHISKEY', 'XRAY', 'X-RAY', 'YANKEE', 'ZULU',
+        'ZERO', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE'
+    }
+
+    tokens = [t.strip(",.;:-").upper() for t in text.split() if t.strip(",.;:-")]
+    if len(tokens) < 2:
+        return 0.0
+
+    match_count = sum(1 for t in tokens if t in nato_words)
+    ratio = match_count / len(tokens)
+    if ratio >= 0.8 and match_count >= 3:
+        return 0.95
+    elif ratio >= 0.5 and match_count >= 2:
+        return 0.80
+
+    return 0.0
+
+
 def detect_morse(text: str) -> float:
     text = text.strip()
     # Morse uses dots, dashes, spaces, slashes
@@ -497,6 +527,7 @@ DETECTORS = {
     'baconian': detect_baconian,
     'a1z26': detect_a1z26,
     'braille': detect_braille,
+    'nato': detect_nato,
     'morse': detect_morse,
     'url': detect_url_encoding,
     'html_entity': detect_html_entity,
