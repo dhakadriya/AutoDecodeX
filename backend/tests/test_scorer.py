@@ -4,7 +4,7 @@ Unit tests for the text scoring module.
 Tests the readability/plaintext detection scoring system.
 """
 import pytest
-from backend.scoring.scorer import score_text, is_likely_encoded
+from backend.scoring.scorer import score_text, is_likely_encoded, calculate_ngram_score
 
 
 class TestScoreText:
@@ -164,3 +164,26 @@ class TestPrintableRatio:
         score = score_text(text)
         # Should be penalized
         assert score < 0.8
+
+
+class TestNgramScoring:
+    """Test bigram and trigram frequency scoring component."""
+
+    def test_ngram_english_text(self):
+        score = calculate_ngram_score("the quick brown fox jumps over the lazy dog")
+        assert score > 0.10
+        prose_score = calculate_ngram_score("the other person will enter the room and say hello")
+        assert prose_score > 0.20
+
+    def test_ngram_gibberish(self):
+        score = calculate_ngram_score("xqzkvpjwbf")
+        assert score < 0.1
+
+    def test_ngram_short_string(self):
+        assert calculate_ngram_score("") == 0.0
+        assert calculate_ngram_score("a") == 0.0
+
+    def test_ngram_exact_trigram_match(self):
+        score = calculate_ngram_score("the")
+        assert score > 0.5
+
