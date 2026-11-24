@@ -16,10 +16,74 @@ ZERO_WIDTH = {
     "\u00ad": "1",  # Soft hyphen → 1
 }
 
+ZW_SPACE = "\u200b"
+ZW_NON_JOINER = "\u200c"
+ZW_JOINER = "\u200d"
+ZW_WORD_JOINER = "\u2060"
+ZW_BOM = "\ufeff"
+
 WHITESPACE_MAP = {
     " ": "0",   # space → 0
     "\t": "1",  # tab → 1
 }
+
+
+def detect_zero_width_stego(text: str) -> float:
+    """
+    Detect presence of zero-width steganographic characters.
+    Returns a confidence score between 0.0 and 1.0.
+    """
+    count = _count_invisible(text)
+    if count >= 8:
+        return 0.95
+    elif count > 0:
+        return 0.70
+    return 0.0
+
+
+def encode_zero_width(cover_text: str, secret: str) -> str:
+    """
+    Encode secret message into cover text using zero-width binary characters.
+    Inserts payload near the midpoint of the cover text.
+    """
+    bits = "".join(f"{ord(c):08b}" for c in secret)
+    zw_payload = "".join(ZW_NON_JOINER if b == "1" else ZW_SPACE for b in bits)
+    insert_pos = len(cover_text) // 2
+    return cover_text[:insert_pos] + zw_payload + cover_text[insert_pos:]
+
+
+def extract_zero_width_payload(text: str) -> dict:
+    """
+    Extract and decode binary data encoded in zero-width characters.
+    Evaluates both standard and inverted zero-width bit polarity.
+    """
+    chars = [c for c in text if c in ZERO_WIDTH]
+    if not chars:
+        return {"found": False, "bit_count": 0, "bits": "", "decoded": "", "scheme": "none"}
+
+    bits_std = "".join(ZERO_WIDTH[c] for c in chars)
+    decoded_std = _bits_to_text(bits_std)
+
+    inv_map = {"0": "1", "1": "0"}
+    bits_inv = "".join(inv_map[ZERO_WIDTH[c]] for c in chars)
+    decoded_inv = _bits_to_text(bits_inv)
+
+    from backend.scoring.scorer import score_text
+    score_std = score_text(decoded_std) if decoded_std else 0.0
+    score_inv = score_text(decoded_inv) if decoded_inv else 0.0
+
+    if score_inv > score_std:
+        best_bits, best_decoded, scheme = bits_inv, decoded_inv, "inverted"
+    else:
+        best_bits, best_decoded, scheme = bits_std, decoded_std, "standard"
+
+    return {
+        "found": True,
+        "bit_count": len(chars),
+        "bits": best_bits[:64] + ("..." if len(best_bits) > 64 else ""),
+        "decoded": best_decoded,
+        "scheme": scheme,
+    }
 
 
 def extract_text_stego(text: str) -> dict:
@@ -39,22 +103,7 @@ def extract_text_stego(text: str) -> dict:
 
 def _extract_zero_width(text: str) -> dict:
     """Extract binary data encoded in zero-width characters."""
-    bits = []
-    for char in text:
-        if char in ZERO_WIDTH:
-            bits.append(ZERO_WIDTH[char])
-
-    if not bits:
-        return {"found": False, "bits": "", "decoded": ""}
-
-    bit_str = "".join(bits)
-    decoded = _bits_to_text(bit_str)
-    return {
-        "found": True,
-        "bit_count": len(bits),
-        "bits": bit_str[:64] + ("..." if len(bit_str) > 64 else ""),
-        "decoded": decoded,
-    }
+    return extract_zero_width_payload(text)
 
 
 def _extract_whitespace(text: str) -> dict:
