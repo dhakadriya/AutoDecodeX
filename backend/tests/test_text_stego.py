@@ -7,6 +7,8 @@ from backend.stego.text_stego import (
     detect_zero_width_stego,
     encode_zero_width,
     extract_zero_width_payload,
+    detect_homoglyphs,
+    normalize_homoglyphs,
 )
 
 
@@ -69,3 +71,36 @@ class TestTextStegoPipeline:
         results = extract_text_stego("")
         assert results["zero_width"]["found"] is False
         assert results["invisible_chars_found"] == 0
+
+
+class TestHomoglyphDetectionAndNormalization:
+    """Test Unicode homoglyph detection and normalization."""
+
+    def test_detect_homoglyphs_positive(self):
+        # Text with mixed Cyrillic homoglyphs
+        spoofed = "fl\u0430g{\u0441yb\u0435r_s\u0435cr\u0435t}"
+        findings = detect_homoglyphs(spoofed)
+        assert findings["found"] is True
+        assert findings["count"] == 5
+        assert findings["confidence"] >= 0.90
+
+    def test_normalize_homoglyphs(self):
+        spoofed = "fl\u0430g{\u0441yb\u0435r_s\u0435cr\u0435t}"
+        normalized = normalize_homoglyphs(spoofed)
+        assert normalized == "flag{cyber_secret}"
+
+    def test_detect_homoglyphs_clean_text(self):
+        clean = "This is clean ASCII text without any confusables."
+        findings = detect_homoglyphs(clean)
+        assert findings["found"] is False
+        assert findings["count"] == 0
+        assert findings["confidence"] == 0.0
+
+    def test_normalize_clean_text_unchanged(self):
+        clean = "Hello World 123!"
+        assert normalize_homoglyphs(clean) == clean
+
+    def test_homoglyphs_empty_input(self):
+        assert detect_homoglyphs("")["found"] is False
+        assert normalize_homoglyphs("") == ""
+
