@@ -594,6 +594,41 @@ class ReverseDecoder(BaseDecoder):
         return reversed_text if reversed_text != clean else None
 
 
+class NATOPhoneticDecoder(BaseDecoder):
+    """
+    NATO phonetic spelling alphabet transcript decoder.
+    Converts phonetic words (Alfa/Alpha, Bravo, Charlie...) into spelled letters/digits.
+    """
+    name = "nato"
+    category = "cipher"
+    description = "NATO phonetic spelling alphabet transcript decoder"
+
+    NATO_MAP = {
+        'ALFA': 'A', 'ALPHA': 'A', 'BRAVO': 'B', 'CHARLIE': 'C', 'DELTA': 'D',
+        'ECHO': 'E', 'FOXTROT': 'F', 'GOLF': 'G', 'HOTEL': 'H', 'INDIA': 'I',
+        'JULIETT': 'J', 'JULIET': 'J', 'KILO': 'K', 'LIMA': 'L', 'MIKE': 'M',
+        'NOVEMBER': 'N', 'OSCAR': 'O', 'PAPA': 'P', 'QUEBEC': 'Q', 'ROMEO': 'R',
+        'SIERRA': 'S', 'TANGO': 'T', 'UNIFORM': 'U', 'VICTOR': 'V', 'WHISKEY': 'W',
+        'XRAY': 'X', 'X-RAY': 'X', 'YANKEE': 'Y', 'ZULU': 'Z',
+        'ZERO': '0', 'ONE': '1', 'TWO': '2', 'THREE': '3', 'FOUR': '4',
+        'FIVE': '5', 'SIX': '6', 'SEVEN': '7', 'EIGHT': '8', 'NINE': '9'
+    }
+
+    def decode(self, text: str) -> Optional[str]:
+        if not text:
+            return None
+        clean = text.strip()
+        tokens = [t.strip(",.;:-").upper() for t in clean.split() if t.strip(",.;:-")]
+        if not tokens or len(tokens) < 2:
+            return None
+
+        matched = [self.NATO_MAP[t] for t in tokens if t in self.NATO_MAP]
+        if len(matched) < len(tokens) * 0.7 or len(matched) < 2:
+            return None
+
+        return "".join(self.NATO_MAP.get(t, t) for t in tokens)
+
+
 # Registry
 DECODERS: dict[str, BaseDecoder] = {
     'base64': Base64Decoder(),
@@ -610,6 +645,7 @@ DECODERS: dict[str, BaseDecoder] = {
     'a1z26': A1Z26Decoder(),
     'braille': BrailleDecoder(),
     'reverse': ReverseDecoder(),
+    'nato': NATOPhoneticDecoder(),
     'morse': MorseDecoder(),
     'url': URLDecoder(),
     'html_entity': HTMLEntityDecoder(),
