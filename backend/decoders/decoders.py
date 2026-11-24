@@ -776,6 +776,75 @@ class AffineDecoder(BaseDecoder):
         return best_candidate
 
 
+class RailFenceDecoder(BaseDecoder):
+    """
+    Rail Fence transposition cipher decoder.
+    Reconstructs plaintext from zigzag rail lines.
+    Supports explicit rails parameter or automatic rail depth search.
+    """
+    name = "rail_fence"
+    category = "cipher"
+    description = "Rail Fence transposition cipher decoder with rail depth search"
+
+    @staticmethod
+    def decrypt(ciphertext: str, rails: int) -> str:
+        """Decrypts ciphertext using the specified number of rails."""
+        if rails <= 1 or rails >= len(ciphertext):
+            return ciphertext
+
+        grid = [[None] * len(ciphertext) for _ in range(rails)]
+        row, step = 0, 1
+        for col in range(len(ciphertext)):
+            grid[row][col] = '*'
+            if row == 0:
+                step = 1
+            elif row == rails - 1:
+                step = -1
+            row += step
+
+        idx = 0
+        for r in range(rails):
+            for c in range(len(ciphertext)):
+                if grid[r][c] == '*' and idx < len(ciphertext):
+                    grid[r][c] = ciphertext[idx]
+                    idx += 1
+
+        result = []
+        row, step = 0, 1
+        for col in range(len(ciphertext)):
+            result.append(grid[row][col])
+            if row == 0:
+                step = 1
+            elif row == rails - 1:
+                step = -1
+            row += step
+
+        return "".join(result)
+
+    def decode(self, text: str, rails: Optional[int] = None) -> Optional[str]:
+        if not text or len(text) < 4:
+            return None
+
+        clean = text.strip()
+        if rails is not None:
+            decrypted = self.decrypt(clean, rails)
+            return decrypted if decrypted != clean else None
+
+        from backend.scoring.scorer import score_text
+        best_candidate = None
+        best_score = 0.60
+        max_rails = min(12, len(clean) // 2 + 1)
+
+        for cand_rails in range(2, max_rails):
+            decrypted = self.decrypt(clean, cand_rails)
+            cand_score = score_text(decrypted)
+            if cand_score > best_score:
+                best_score = cand_score
+                best_candidate = decrypted
+
+        return best_candidate
+
+
 # Registry
 DECODERS: dict[str, BaseDecoder] = {
     'base64': Base64Decoder(),
@@ -795,6 +864,7 @@ DECODERS: dict[str, BaseDecoder] = {
     'nato': NATOPhoneticDecoder(),
     'vigenere': VigenereDecoder(),
     'affine': AffineDecoder(),
+    'rail_fence': RailFenceDecoder(),
     'morse': MorseDecoder(),
     'url': URLDecoder(),
     'html_entity': HTMLEntityDecoder(),
