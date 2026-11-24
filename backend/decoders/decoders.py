@@ -575,6 +575,25 @@ class BrailleDecoder(BaseDecoder):
         return res if res != clean else None
 
 
+class ReverseDecoder(BaseDecoder):
+    """
+    Reverse string decoder (mirror text).
+    Reverses the character sequence of the input string.
+    """
+    name = "reverse"
+    category = "cipher"
+    description = "Reverses input character sequence"
+
+    def decode(self, text: str) -> Optional[str]:
+        if not text:
+            return None
+        clean = text.strip()
+        if len(clean) < 2:
+            return None
+        reversed_text = clean[::-1]
+        return reversed_text if reversed_text != clean else None
+
+
 # Registry
 DECODERS: dict[str, BaseDecoder] = {
     'base64': Base64Decoder(),
@@ -590,6 +609,7 @@ DECODERS: dict[str, BaseDecoder] = {
     'baconian': BaconianDecoder(),
     'a1z26': A1Z26Decoder(),
     'braille': BrailleDecoder(),
+    'reverse': ReverseDecoder(),
     'morse': MorseDecoder(),
     'url': URLDecoder(),
     'html_entity': HTMLEntityDecoder(),
