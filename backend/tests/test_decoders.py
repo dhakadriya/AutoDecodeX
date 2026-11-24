@@ -11,7 +11,7 @@ import pytest
 from backend.decoders.decoders import (
     Base64Decoder, Base32Decoder, Base85Decoder,
     HexDecoder, BinaryDecoder, DecimalAsciiDecoder, OctalDecoder,
-    ROT13Decoder, CaesarDecoder, AtbashDecoder, BaconianDecoder, A1Z26Decoder, BrailleDecoder, ReverseDecoder, NATOPhoneticDecoder, VigenereDecoder, AffineDecoder, MorseDecoder,
+    ROT13Decoder, CaesarDecoder, AtbashDecoder, BaconianDecoder, A1Z26Decoder, BrailleDecoder, ReverseDecoder, NATOPhoneticDecoder, VigenereDecoder, AffineDecoder, RailFenceDecoder, MorseDecoder,
     URLDecoder, HTMLEntityDecoder, UnicodeEscapeDecoder,
     XORDecoder, UUDecoder, ZlibDecoder, GzipDecoder,
 )
@@ -619,6 +619,41 @@ class TestAffineDecoder:
         decoder = AffineDecoder()
         assert decoder.decode("") is None
         assert decoder.decode("12345!@#$") is None
+
+
+class TestRailFenceDecoder:
+    """Test Rail Fence transposition cipher decoding."""
+
+    def test_rail_fence_decrypt_basic(self):
+        ciphertext = "WECRLTEERDSOEEFEAOCAIVDEN"
+        result = RailFenceDecoder.decrypt(ciphertext, 3)
+        assert result == "WEAREDISCOVEREDFLEEATONCE"
+
+    def test_rail_fence_decrypt_two_rails(self):
+        # "hello world" with 2 rails:
+        # row 0: h l o w r d -> "hlowrd"
+        # row 1: e l   o l   -> "el ol"
+        ciphertext = "hlowrdel ol"
+        result = RailFenceDecoder.decrypt(ciphertext, 2)
+        assert result == "hello world"
+
+    def test_rail_fence_decode_explicit_rails(self):
+        decoder = RailFenceDecoder()
+        result = decoder.decode("WECRLTEERDSOEEFEAOCAIVDEN", rails=3)
+        assert result == "WEAREDISCOVEREDFLEEATONCE"
+
+    def test_rail_fence_decode_auto_search(self):
+        decoder = RailFenceDecoder()
+        ciphertext = "WECRLTEERDSOEEFEAOCAIVDEN"
+        result = decoder.decode(ciphertext)
+        assert result is not None
+        assert "DISCOVERED" in result
+
+    def test_rail_fence_invalid_inputs(self):
+        decoder = RailFenceDecoder()
+        assert decoder.decode("") is None
+        assert decoder.decode("abc") is None
+
 
 
 
