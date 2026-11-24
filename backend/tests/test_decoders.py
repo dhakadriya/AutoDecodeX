@@ -135,6 +135,23 @@ class TestDecimalAsciiDecoder:
         result = decoder.decode("not numbers")
         assert result is None
 
+    def test_decimal_ascii_comma_separated(self):
+        decoder = DecimalAsciiDecoder()
+        assert decoder.decode("72, 101, 108, 108, 111") == "Hello"
+
+    def test_decimal_ascii_semicolon_separated(self):
+        decoder = DecimalAsciiDecoder()
+        assert decoder.decode("72;101;108;108;111") == "Hello"
+
+    def test_decimal_ascii_hyphen_separated(self):
+        decoder = DecimalAsciiDecoder()
+        assert decoder.decode("72-101-108-108-111") == "Hello"
+
+    def test_decimal_ascii_utf8_multibyte(self):
+        decoder = DecimalAsciiDecoder()
+        # 195 169 is UTF-8 encoding of 'é'
+        assert decoder.decode("195, 169") == "é"
+
 
 class TestROT13Decoder:
     """Test ROT13 decoder functionality."""
