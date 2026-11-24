@@ -184,6 +184,25 @@ def _extract_zip_metadata(file_bytes: bytes) -> dict:
         }
 
 
+def parse_wav_chunks(data: bytes) -> list[dict]:
+    """
+    Parse all RIFF chunks from WAV audio file bytes.
+    Returns list of chunk descriptors with id, size, and offset.
+    """
+    if len(data) < 12 or data[:4] != b'RIFF' or data[8:12] != b'WAVE':
+        return []
+    chunks = []
+    offset = 12
+    while offset + 8 <= len(data):
+        cid = data[offset:offset+4].decode('latin-1', errors='replace')
+        csize = struct.unpack('<I', data[offset+4:offset+8])[0]
+        chunks.append({'id': cid, 'size': csize, 'offset': offset})
+        offset += 8 + csize
+        if csize % 2 == 1:
+            offset += 1
+    return chunks
+
+
 def _extract_wav_metadata(file_bytes: bytes) -> dict:
     import wave
     try:
@@ -205,12 +224,27 @@ def _extract_wav_metadata(file_bytes: bytes) -> dict:
                 "duration_seconds": round(duration, 2),
             }
 
+            chunks = parse_wav_chunks(file_bytes)
+            chunk_summary = ", ".join(f"{c['id'].strip()}({c['size']}B)" for c in chunks)
+
             exif = {
                 "Channels": str(n_channels),
                 "Sample Rate": f"{framerate} Hz",
                 "Duration": f"{duration:.2f} seconds",
                 "Bits per Sample": str(samp_width * 8),
+                "RIFF Chunks": chunk_summary,
             }
+
+            if chunks:
+                last_chunk = chunks[-1]
+                declared_end = last_chunk["offset"] + 8 + last_chunk["size"]
+                if last_chunk["size"] % 2 == 1:
+                    declared_end += 1
+                if len(file_bytes) > declared_end:
+                    overlay_len = len(file_bytes) - declared_end
+                    file_info["has_trailing_overlay"] = True
+                    file_info["overlay_size_bytes"] = overlay_len
+                    exif["Trailing Overlay"] = f"{overlay_len} bytes detected after audio chunks"
 
             return {
                 "file_info": file_info,
