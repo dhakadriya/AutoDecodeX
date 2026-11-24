@@ -722,6 +722,60 @@ class VigenereDecoder(BaseDecoder):
         return best_candidate
 
 
+class AffineDecoder(BaseDecoder):
+    """
+    Affine cipher decoder.
+    Monoalphabetic substitution: E(x) = (a*x + b) mod 26, D(y) = a_inv*(y - b) mod 26.
+    Supports explicit (a, b) parameters or brute-force search over all 312 coprime keys.
+    """
+    name = "affine"
+    category = "cipher"
+    description = "Affine substitution cipher decoder with modular inverse search"
+
+    COPRIME_A = [1, 3, 5, 7, 9, 11, 15, 17, 19, 21, 23, 25]
+
+    @staticmethod
+    def decrypt(text: str, a: int, b: int) -> str:
+        """Decrypts text with Affine key parameters a and b."""
+        try:
+            a_inv = pow(a, -1, 26)
+        except ValueError:
+            return text
+        result = []
+        for char in text:
+            if char.isalpha():
+                base = ord('A') if char.isupper() else ord('a')
+                dec = (a_inv * (ord(char) - base - b)) % 26
+                result.append(chr(dec + base))
+            else:
+                result.append(char)
+        return "".join(result)
+
+    def decode(self, text: str, a: Optional[int] = None, b: Optional[int] = None) -> Optional[str]:
+        if not text or not any(c.isalpha() for c in text):
+            return None
+
+        if a is not None and b is not None:
+            decrypted = self.decrypt(text, a, b)
+            return decrypted if decrypted != text else None
+
+        from backend.scoring.scorer import score_text
+        best_candidate = None
+        best_score = 0.65
+
+        for cand_a in self.COPRIME_A:
+            for cand_b in range(26):
+                if cand_a == 1 and cand_b == 0:
+                    continue
+                decrypted = self.decrypt(text, cand_a, cand_b)
+                cand_score = score_text(decrypted)
+                if cand_score > best_score:
+                    best_score = cand_score
+                    best_candidate = decrypted
+
+        return best_candidate
+
+
 # Registry
 DECODERS: dict[str, BaseDecoder] = {
     'base64': Base64Decoder(),
@@ -740,6 +794,7 @@ DECODERS: dict[str, BaseDecoder] = {
     'reverse': ReverseDecoder(),
     'nato': NATOPhoneticDecoder(),
     'vigenere': VigenereDecoder(),
+    'affine': AffineDecoder(),
     'morse': MorseDecoder(),
     'url': URLDecoder(),
     'html_entity': HTMLEntityDecoder(),
