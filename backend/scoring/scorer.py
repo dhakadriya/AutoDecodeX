@@ -57,6 +57,17 @@ def vowel_consonant_ratio(text: str) -> float:
     return vowels / len(letters)
 
 
+def punctuation_ratio(text: str) -> float:
+    """
+    Returns the ratio of punctuation and symbol characters to total characters.
+    Returns 0.0 if the text is empty.
+    """
+    if not text:
+        return 0.0
+    punct_count = sum(1 for c in text if c in string.punctuation)
+    return punct_count / len(text)
+
+
 def score_text(text: str) -> float:
     """
     Returns a confidence score (0.0 - 1.0) for how likely the text is plaintext.
@@ -152,6 +163,12 @@ def score_text(text: str) -> float:
         v_ratio = sum(1 for c in letters if c in 'aeiou') / len(letters)
         if v_ratio < 0.15 or v_ratio > 0.65:
             score -= 0.10
+
+    # 5c. Excessive punctuation and symbol penalty
+    if len(text) >= 6:
+        p_ratio = punctuation_ratio(text)
+        if p_ratio > 0.35:
+            score -= (p_ratio - 0.35) * 0.30
 
     # 6. Penalty for high ratio of non-printable or control chars (up to -0.3)
     non_printable = len(text) - printable
