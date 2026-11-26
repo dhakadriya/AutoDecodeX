@@ -270,3 +270,42 @@ class TestDetectorLimitations:
 
 # Import for last test
 from backend.models.schemas import FindingStatus
+
+
+class TestSlidingWindowEntropy:
+    """Test sliding window entropy calculation and anomaly detection."""
+
+    def test_empty_bytes(self):
+        from backend.stego.entropy_analyzer import compute_sliding_window_entropy, detect_entropy_anomalies
+        assert compute_sliding_window_entropy(b"") == []
+        assert detect_entropy_anomalies([]) == []
+
+    def test_single_window_small_data(self):
+        from backend.stego.entropy_analyzer import compute_sliding_window_entropy
+        data = b"Hello, World!"
+        windows = compute_sliding_window_entropy(data, window_size=64)
+        assert len(windows) == 1
+        assert windows[0]["offset"] == 0
+        assert windows[0]["length"] == len(data)
+        assert windows[0]["entropy"] > 0.0
+
+    def test_sliding_window_steps(self):
+        from backend.stego.entropy_analyzer import compute_sliding_window_entropy
+        data = b"A" * 512 + bytes(range(256)) + b"B" * 512
+        windows = compute_sliding_window_entropy(data, window_size=256, step_size=128)
+        assert len(windows) >= 6
+        entropies = [w["entropy"] for w in windows]
+        assert max(entropies) > 7.0
+        assert min(entropies) == 0.0
+
+    def test_detect_entropy_anomalies(self):
+        from backend.stego.entropy_analyzer import compute_sliding_window_entropy, detect_entropy_anomalies
+        data = b"\x00" * 400 + bytes(range(256)) * 2 + b"\x00" * 400
+        windows = compute_sliding_window_entropy(data, window_size=256, step_size=128)
+        anomalies = detect_entropy_anomalies(windows, threshold=7.0)
+        assert len(anomalies) >= 1
+        first = anomalies[0]
+        assert first["peak_entropy"] >= 7.0
+        assert first["start_offset"] >= 256
+        assert first["length"] > 0
+
