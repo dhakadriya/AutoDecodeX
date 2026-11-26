@@ -190,6 +190,28 @@ class TestCaseStore:
         assert delete_case(case.case_id) is True
         assert get_case(case.case_id) is None
 
+    def test_search_cases_by_filename(self, text_file_bytes):
+        from backend.models.case_store import search_cases
+        case = run_full_analysis("unique_secret_investigation.bin", text_file_bytes)
+        results = search_cases(query="unique_secret")
+        assert len(results) >= 1
+        assert any(c.case_id == case.case_id for c in results)
+
+    def test_search_cases_by_format(self, test_image_bytes):
+        from backend.models.case_store import search_cases
+        case = run_full_analysis("evidence_img.png", test_image_bytes)
+        results = search_cases(format_filter="PNG")
+        assert len(results) >= 1
+        assert any(c.case_id == case.case_id for c in results)
+
+    def test_case_store_summary_stats(self):
+        from backend.models.case_store import get_case_summary_stats
+        stats = get_case_summary_stats()
+        assert "total_cases" in stats
+        assert "total_evidence_bytes" in stats
+        assert "total_findings" in stats
+        assert "format_breakdown" in stats
+
 
 # ── E. Security tests ──────────────────────────────────────────────────────
 
