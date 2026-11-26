@@ -6,7 +6,8 @@ Tests detection accuracy and confidence scoring for all supported encodings.
 import pytest
 from backend.detectors.detector import (
     detect_base64, detect_base32, detect_base85, detect_base58, detect_hex, detect_binary, detect_octal,
-    detect_rot13, detect_caesar, detect_atbash, detect_baconian, detect_a1z26, detect_braille, detect_reverse, detect_nato, detect_morse, detect_url_encoding,
+    detect_rot13, detect_caesar, detect_atbash, detect_baconian, detect_a1z26, detect_braille, detect_reverse,
+    detect_polybius, detect_brainfuck, detect_nato, detect_morse, detect_url_encoding,
     detect_html_entity, detect_unicode_escape,
     detect_uuencoding, detect_zlib, detect_gzip,
     detect_md5, detect_sha1, detect_sha224, detect_sha256,
@@ -219,6 +220,37 @@ class TestReverseDetection:
 
     def test_reject_short_string(self):
         assert detect_reverse("abc") == 0.0
+
+
+class TestPolybiusDetection:
+    """Test Polybius square coordinate detection."""
+
+    def test_detect_space_separated(self):
+        assert detect_polybius("11 23 45 12 34") >= 0.9
+
+    def test_detect_continuous_digits(self):
+        assert detect_polybius("1123451234") >= 0.85
+
+    def test_reject_out_of_range_digits(self):
+        assert detect_polybius("16 27 38 49") == 0.0
+
+    def test_reject_odd_digits(self):
+        assert detect_polybius("11234") == 0.0
+
+
+class TestBrainfuckDetection:
+    """Test Brainfuck esoteric language detection."""
+
+    def test_detect_standard_brainfuck(self):
+        code = "++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++."
+        assert detect_brainfuck(code) >= 0.9
+
+    def test_detect_simple_loop(self):
+        code = "++[>+<-]>."
+        assert detect_brainfuck(code) >= 0.7
+
+    def test_reject_plain_text(self):
+        assert detect_brainfuck("print('hello world')") == 0.0
 
 
 class TestAtbashDetection:
