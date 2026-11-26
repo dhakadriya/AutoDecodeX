@@ -1,5 +1,9 @@
 from .lsb_extractor import extract_lsb, analyze_lsb
-from .entropy_analyzer import analyze_entropy
+from .entropy_analyzer import (
+    analyze_entropy,
+    compute_sliding_window_entropy,
+    detect_entropy_anomalies,
+)
 from .text_stego import (
     extract_text_stego,
     detect_zero_width_stego,

@@ -114,3 +114,71 @@ def _chi_square_lsb(arr: np.ndarray) -> float:
     # Normalize to 0-1 range
     normalized = chi / (degrees_of_freedom * 2.0 + 1e-6)
     return float(min(1.0, max(0.0, normalized)))
+
+
+def compute_sliding_window_entropy(data: bytes, window_size: int = 1024, step_size: int = 512) -> list[dict]:
+    """
+    Computes Shannon entropy across fixed-size sliding windows over a raw byte stream.
+    Used for locating encrypted blobs, compressed sections, or hidden payload injections.
+    Returns list of dicts with offset, length, and entropy.
+    """
+    if not data:
+        return []
+
+    # If data is smaller than window, calculate entropy for entire byte sequence
+    if len(data) <= window_size:
+        return [{"offset": 0, "length": len(data), "entropy": round(_shannon_entropy(data), 4)}]
+
+    results = []
+    effective_step = max(1, step_size)
+    for offset in range(0, len(data) - window_size + 1, effective_step):
+        chunk = data[offset:offset+window_size]
+        e = _shannon_entropy(chunk)
+        results.append({
+            "offset": offset,
+            "length": len(chunk),
+            "entropy": round(e, 4)
+        })
+    return results
+
+
+def detect_entropy_anomalies(windows: list[dict], threshold: float = 7.0) -> list[dict]:
+    """
+    Identifies contiguous sliding windows where entropy meets or exceeds the threshold.
+    Returns list of anomalous regions with start_offset, end_offset, length, and peak_entropy.
+    """
+    anomalies = []
+    in_anomaly = False
+    start = 0
+    peak = 0.0
+    end = 0
+
+    for w in windows:
+        if w["entropy"] >= threshold:
+            if not in_anomaly:
+                in_anomaly = True
+                start = w["offset"]
+                peak = w["entropy"]
+            else:
+                peak = max(peak, w["entropy"])
+            end = w["offset"] + w["length"]
+        else:
+            if in_anomaly:
+                anomalies.append({
+                    "start_offset": start,
+                    "end_offset": end,
+                    "length": end - start,
+                    "peak_entropy": round(peak, 4),
+                })
+                in_anomaly = False
+
+    if in_anomaly:
+        anomalies.append({
+            "start_offset": start,
+            "end_offset": end,
+            "length": end - start,
+            "peak_entropy": round(peak, 4),
+        })
+
+    return anomalies
+
