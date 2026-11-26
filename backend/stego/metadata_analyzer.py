@@ -349,6 +349,90 @@ def convert_gps_to_decimal(gps_info: dict) -> tuple[float | None, float | None]:
     return lat, lon
 
 
+def parse_png_chunks(data: bytes) -> dict:
+    """
+    Parses PNG chunks according to the PNG specification.
+    Extracts chunk types, offsets, lengths, textual payloads (tEXt, zTXt, iTXt),
+    and detects any trailing overlay bytes appended after the IEND chunk.
+    """
+    if len(data) < 8 or data[:8] != b'\x89PNG\r\n\x1a\n':
+        return {"valid": False, "chunks": [], "trailing_overlay_bytes": 0, "has_trailing_overlay": False}
+
+    import zlib
+    chunks = []
+    offset = 8
+    text_data = {}
+    iend_found = False
+    iend_end_offset = len(data)
+
+    while offset + 8 <= len(data):
+        length = struct.unpack('>I', data[offset:offset+4])[0]
+        ctype_bytes = data[offset+4:offset+8]
+        ctype = ctype_bytes.decode('latin-1', errors='replace')
+        chunk_data_offset = offset + 8
+        chunk_data_end = chunk_data_offset + length
+
+        if chunk_data_end + 4 > len(data):
+            break
+
+        chunk_data = data[chunk_data_offset:chunk_data_end]
+        crc = struct.unpack('>I', data[chunk_data_end:chunk_data_end+4])[0]
+
+        chunks.append({
+            "type": ctype,
+            "length": length,
+            "offset": offset,
+            "crc": hex(crc),
+            "ancillary": ctype[0].islower(),
+        })
+
+        if ctype == 'tEXt':
+            if b'\x00' in chunk_data:
+                k, v = chunk_data.split(b'\x00', 1)
+                text_data[k.decode('latin-1', errors='replace')] = v.decode('latin-1', errors='replace')
+        elif ctype == 'zTXt':
+            if b'\x00' in chunk_data:
+                k, rest = chunk_data.split(b'\x00', 1)
+                if len(rest) > 1 and rest[0] == 0:
+                    try:
+                        decomp = zlib.decompress(rest[1:])
+                        text_data[k.decode('latin-1', errors='replace')] = decomp.decode('utf-8', errors='replace')
+                    except Exception:
+                        pass
+        elif ctype == 'iTXt':
+            parts = chunk_data.split(b'\x00', 5)
+            if len(parts) >= 6:
+                k = parts[0].decode('latin-1', errors='replace')
+                comp_flag = parts[1][0] if len(parts[1]) > 0 else 0
+                body = parts[5]
+                if comp_flag == 1:
+                    try:
+                        decomp = zlib.decompress(body)
+                        text_data[k] = decomp.decode('utf-8', errors='replace')
+                    except Exception:
+                        text_data[k] = body.decode('utf-8', errors='replace')
+                else:
+                    text_data[k] = body.decode('utf-8', errors='replace')
+
+        offset = chunk_data_end + 4
+        if ctype == 'IEND':
+            iend_found = True
+            iend_end_offset = offset
+            break
+
+    trailing_len = max(0, len(data) - iend_end_offset) if iend_found else 0
+
+    return {
+        "valid": True,
+        "chunks_count": len(chunks),
+        "chunks": chunks,
+        "text_data": text_data,
+        "iend_found": iend_found,
+        "trailing_overlay_bytes": trailing_len,
+        "has_trailing_overlay": trailing_len > 0,
+    }
+
+
 # ── Main metadata extractor ────────────────────────────────────────────────
 def extract_metadata(image_bytes: bytes) -> dict:
     """
@@ -382,6 +466,18 @@ def extract_metadata(image_bytes: bytes) -> dict:
         png_text = {}
         if hasattr(img, "text") and img.text:
             png_text = {k: str(v) for k, v in img.text.items()}
+
+        # Deep PNG specification chunk and overlay inspection
+        if image_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
+            png_meta = parse_png_chunks(image_bytes)
+            if png_meta.get("valid"):
+                for k, v in png_meta.get("text_data", {}).items():
+                    if k not in png_text:
+                        png_text[k] = v
+                if png_meta.get("has_trailing_overlay"):
+                    file_info["has_trailing_overlay"] = True
+                    file_info["overlay_size_bytes"] = png_meta["trailing_overlay_bytes"]
+                    exif_fields["Trailing Overlay"] = f"{png_meta['trailing_overlay_bytes']} bytes appended after IEND chunk"
 
         # EXIF data
         exif_fields = {}
