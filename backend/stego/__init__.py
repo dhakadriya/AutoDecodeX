@@ -8,4 +8,4 @@ from .text_stego import (
     detect_homoglyphs,
     normalize_homoglyphs,
 )
-from .metadata_analyzer import extract_metadata, analyze_metadata, full_metadata_pipeline
+from .metadata_analyzer import extract_metadata, analyze_metadata, full_metadata_pipeline, convert_gps_to_decimal

@@ -305,6 +305,50 @@ def _extract_pdf_metadata(file_bytes: bytes) -> dict:
         }
 
 
+def convert_gps_to_decimal(gps_info: dict) -> tuple[float | None, float | None]:
+    """
+    Converts EXIF GPS coordinate rationals to decimal degrees (latitude, longitude).
+    Handles degrees, minutes, seconds tuples and latitude/longitude reference hemispheres.
+    Returns (latitude, longitude) as floats rounded to 6 decimal places, or (None, None).
+    """
+    def _dms_to_deg(dms) -> float | None:
+        try:
+            if isinstance(dms, (list, tuple)) and len(dms) >= 3:
+                parts = []
+                for x in dms[:3]:
+                    if isinstance(x, (tuple, list)) and len(x) == 2:
+                        parts.append(float(x[0]) / float(x[1]) if x[1] != 0 else 0.0)
+                    elif hasattr(x, 'numerator') and hasattr(x, 'denominator'):
+                        parts.append(float(x.numerator) / float(x.denominator) if x.denominator != 0 else 0.0)
+                    else:
+                        parts.append(float(x))
+                return parts[0] + (parts[1] / 60.0) + (parts[2] / 3600.0)
+            return None
+        except Exception:
+            return None
+
+    # Handle both integer tag IDs and string tag names
+    lat_dms = gps_info.get("GPSLatitude") or gps_info.get(2)
+    lat_ref = gps_info.get("GPSLatitudeRef") or gps_info.get(1) or "N"
+    lon_dms = gps_info.get("GPSLongitude") or gps_info.get(4)
+    lon_ref = gps_info.get("GPSLongitudeRef") or gps_info.get(3) or "E"
+
+    lat = _dms_to_deg(lat_dms)
+    lon = _dms_to_deg(lon_dms)
+
+    if lat is not None:
+        if str(lat_ref).strip().upper() == "S":
+            lat = -lat
+        lat = round(lat, 6)
+
+    if lon is not None:
+        if str(lon_ref).strip().upper() == "W":
+            lon = -lon
+        lon = round(lon, 6)
+
+    return lat, lon
+
+
 # ── Main metadata extractor ────────────────────────────────────────────────
 def extract_metadata(image_bytes: bytes) -> dict:
     """
@@ -356,6 +400,12 @@ def extract_metadata(image_bytes: bytes) -> dict:
                         for gps_tag, gps_val in value.items():
                             gps_name = GPSTAGS.get(gps_tag, f"GPS_{gps_tag}")
                             gps_fields[gps_name] = _normalize(gps_val)
+                        lat, lon = convert_gps_to_decimal(value)
+                        if lat is not None and lon is not None:
+                            gps_fields["DecimalLatitude"] = str(lat)
+                            gps_fields["DecimalLongitude"] = str(lon)
+                            gps_fields["Coordinates"] = f"{lat}, {lon}"
+                            file_info["gps_coordinates"] = f"{lat}, {lon}"
                     else:
                         exif_fields[tag_name] = norm
         except Exception:
