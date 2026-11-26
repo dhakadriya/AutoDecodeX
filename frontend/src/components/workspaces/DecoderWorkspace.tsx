@@ -38,7 +38,7 @@ export default function DecoderWorkspace({ onInspectorUpdate, onLog, onClearLogs
         onInspectorUpdate({
           detections: res.detections.slice(0, 3).map(d => ({
             type: d.type,
-            confidence: Math.round(d.confidence)
+            confidence: Math.round(d.confidence <= 1.0 ? d.confidence * 100 : d.confidence)
           }))
         });
       } catch {
@@ -101,15 +101,16 @@ export default function DecoderWorkspace({ onInspectorUpdate, onLog, onClearLogs
         onLog("success", "🚩 CTF FLAG DETECTED!");
       }
       
-      onLog("success", `Decode complete. Final score: ${Math.round(res.total_score)}%`);
+      const scorePct = Math.round(res.total_score <= 1.0 ? res.total_score * 100 : res.total_score);
+      onLog("success", `Decode complete. Final score: ${scorePct}%`);
       
       // Update inspector
       onInspectorUpdate({
         detections: res.detections?.slice(0, 3).map(d => ({
           type: d.type,
-          confidence: Math.round(d.confidence)
+          confidence: Math.round(d.confidence <= 1.0 ? d.confidence * 100 : d.confidence)
         })) || [],
-        riskScore: res.total_score > 80 ? "low" : res.total_score > 50 ? "medium" : "high",
+        riskScore: scorePct > 80 ? "low" : scorePct > 50 ? "medium" : "high",
         flags: res.is_ctf_flag ? [res.final_output] : [],
       });
       
@@ -152,15 +153,17 @@ export default function DecoderWorkspace({ onInspectorUpdate, onLog, onClearLogs
       content += `===========================\n\n`;
       content += `Input: ${input}\n\n`;
       content += `Final Output: ${result.final_output}\n`;
-      content += `Readability Score: ${result.total_score}%\n`;
+      content += `Readability Score: ${(result.total_score <= 1.0 ? result.total_score * 100 : result.total_score).toFixed(1)}%\n`;
       content += `Success: ${result.success ? "Yes" : "No"}\n\n`;
       content += `Transformation Steps:\n`;
       result.steps.forEach(s => {
-        content += `- Step ${s.step_number} (${s.encoding_type}): ${s.output_text} (confidence: ${Math.round(s.confidence * 100)}%)\n`;
+        const confPct = Math.round(s.confidence <= 1.0 ? s.confidence * 100 : s.confidence);
+        content += `- Step ${s.step_number} (${s.encoding_type}): ${s.output_text} (confidence: ${confPct}%)\n`;
       });
       filename += ".txt";
       mimeType = "text/plain";
     } else if (format === "html") {
+      const scorePct = (result.total_score <= 1.0 ? result.total_score * 100 : result.total_score).toFixed(1);
       content = `<html>
 <head>
   <title>AutoDecodeX Report</title>
@@ -176,7 +179,7 @@ export default function DecoderWorkspace({ onInspectorUpdate, onLog, onClearLogs
   <div class="card">
     <p><strong>Input:</strong> ${input}</p>
     <p><strong>Final Output:</strong> ${result.final_output}</p>
-    <p><strong>Readability Score:</strong> ${result.total_score}%</p>
+    <p><strong>Readability Score:</strong> ${scorePct}%</p>
   </div>
   <h2>Steps</h2>
   ${result.steps.map(s => `
@@ -323,7 +326,9 @@ export default function DecoderWorkspace({ onInspectorUpdate, onLog, onClearLogs
         <div className="space-y-2">
           <h3 className="text-xs text-theme-secondary uppercase tracking-wider font-mono">Detection Confidence</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {detections.slice(0, 4).map((det, i) => (
+            {detections.slice(0, 4).map((det, i) => {
+              const detPct = Math.round(det.confidence <= 1.0 ? det.confidence * 100 : det.confidence);
+              return (
               <motion.div
                 key={i}
                 initial={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -336,20 +341,20 @@ export default function DecoderWorkspace({ onInspectorUpdate, onLog, onClearLogs
                 </div>
                 <div className="flex items-baseline gap-1 mb-3">
                   <span className="text-2xl font-bold text-theme-primary font-mono">
-                    {Math.round(det.confidence)}
+                    {detPct}
                   </span>
                   <span className="text-sm text-theme-secondary">%</span>
                 </div>
                 <div className="h-1.5 bg-theme-input rounded-full overflow-hidden">
                   <motion.div
                     initial={{ width: 0 }}
-                    animate={{ width: `${det.confidence}%` }}
+                    animate={{ width: `${detPct}%` }}
                     transition={{ duration: 0.8, delay: 0.2 + i * 0.1 }}
                     className="h-full bg-theme-accent"
                   />
                 </div>
               </motion.div>
-            ))}
+            );})}
           </div>
         </div>
       )}
@@ -365,14 +370,16 @@ export default function DecoderWorkspace({ onInspectorUpdate, onLog, onClearLogs
           <div>
             <h3 className="text-xs text-theme-secondary uppercase tracking-wider mb-4 font-mono">Decoding Steps Details</h3>
             <div className="space-y-3">
-              {result.steps.map((step, i) => (
+              {result.steps.map((step, i) => {
+                const stepPct = Math.round(step.confidence <= 1.0 ? step.confidence * 100 : step.confidence);
+                return (
                 <div key={i} className="bg-theme-card rounded-lg p-3 border border-theme-border">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-bold text-theme-accent uppercase font-mono">
                       Step {step.step_number}: {step.encoding_type}
                     </span>
                     <span className="text-xs text-theme-secondary font-mono">
-                      {Math.round(step.confidence)}% confidence
+                      {stepPct}% confidence
                     </span>
                   </div>
                   <div className="text-sm text-theme-primary font-mono break-all bg-theme-input/50 p-2.5 rounded border border-theme-border/50">
@@ -380,7 +387,7 @@ export default function DecoderWorkspace({ onInspectorUpdate, onLog, onClearLogs
                     {step.output_text.length > 200 && "..."}
                   </div>
                 </div>
-              ))}
+              );})}
             </div>
           </div>
           
