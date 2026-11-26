@@ -176,6 +176,10 @@ def detect_rot13(text: str) -> float:
     # Check for common English letter patterns vs ROT13 patterns
     lower = text.lower()
     
+    # Direct check for ROT13 encrypted flag formats (synt{ -> flag{, pqs{ -> ctf{, unpx{ -> hack{)
+    if re.search(r'(?:synt|pqs|unpx)\{[^}]*\}?', lower):
+        return 0.95
+    
     # In ROT13, common English letters (etaoin) become (rgnbva)
     # Count frequency of typical ROT13-shifted letters
     rot13_indicators = sum(lower.count(c) for c in 'rgnbva')
@@ -249,6 +253,10 @@ def detect_atbash(text: str) -> float:
         return 0.0
 
     lower = text.lower()
+    # Direct check for Atbash encrypted flag formats (uozt{ -> flag{, xgu{ -> ctf{)
+    if re.search(r'(?:uozt|xgu)\{[^}]*\}?', lower):
+        return 0.95
+
     # Signatures: "the" -> "gsv", "hello" -> "svool", "world" -> "dliow", "flag" -> "uozt", "and" -> "zmw"
     atbash_signatures = ['gsv', 'svool', 'dliow', 'zmw', 'uozt', 'gsrh']
     if any(sig in lower for sig in atbash_signatures):
