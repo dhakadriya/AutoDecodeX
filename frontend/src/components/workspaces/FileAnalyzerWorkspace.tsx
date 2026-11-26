@@ -21,6 +21,9 @@ interface FileAnalysis {
   strings: string[];
   printableRatio: number;
   magicBytes: string;
+  metadata?: any;
+  lsb?: any;
+  lsb_decode?: any;
 }
 
 export default function FileAnalyzerWorkspace({
@@ -54,6 +57,15 @@ export default function FileAnalyzerWorkspace({
         onLog("warning", "⚠️ Low printable ratio - likely binary file");
       }
 
+      const flagsFound: string[] = [
+        ...(result.metadata?.analysis?.flags_found || []),
+        ...(result.lsb_decode?.is_ctf_flag ? [result.lsb_decode.final_output] : [])
+      ];
+
+      if (flagsFound.length > 0) {
+        flagsFound.forEach(f => onLog("success", `🚩 Flag Detected in Evidence: ${f}`));
+      }
+
       onInspectorUpdate({
         fileName: result.name,
         fileSize: result.size,
@@ -61,7 +73,8 @@ export default function FileAnalyzerWorkspace({
         sha256: result.sha256.slice(0, 16) + "...",
         stringsFound: result.strings.length,
         printableRatio: result.printableRatio.toFixed(1) + "%",
-        riskLevel: result.entropy > 7.5 ? "high" : result.entropy > 6 ? "medium" : "low",
+        riskLevel: flagsFound.length > 0 ? "high" : result.entropy > 7.5 ? "high" : result.entropy > 6 ? "medium" : "low",
+        flags: flagsFound,
       });
     } catch (error) {
       onLog("error", `Analysis failed: ${error instanceof Error ? error.message : "Unknown error"}`);
@@ -197,6 +210,54 @@ export default function FileAnalyzerWorkspace({
               </div>
             </div>
           </div>
+
+          {/* Flags Banner */}
+          {Boolean((analysis.metadata?.analysis?.flags_found?.length > 0) || analysis.lsb_decode?.is_ctf_flag) && (
+            <div className="bg-theme-success/10 border-2 border-theme-success/40 rounded-xl p-4 space-y-2">
+              <div className="flex items-center gap-2 font-mono select-none">
+                <span className="text-xl">🚩</span>
+                <h3 className="text-sm font-bold text-theme-success uppercase">Flags Detected in Evidence</h3>
+              </div>
+              <div className="space-y-1.5">
+                {[
+                  ...(analysis.metadata?.analysis?.flags_found || []),
+                  ...(analysis.lsb_decode?.is_ctf_flag ? [analysis.lsb_decode.final_output] : [])
+                ].map((flg: string, idx: number) => (
+                  <div key={idx} className="flex items-center justify-between bg-theme-surface/80 p-2.5 rounded border border-theme-success/30 font-mono text-xs">
+                    <span className="text-theme-success font-bold break-all">{flg}</span>
+                    <button onClick={() => copyToClipboard(flg)} className="text-theme-muted hover:text-theme-success ml-2">
+                      <Copy size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Forensic Metadata Findings */}
+          {Boolean(analysis.metadata?.analysis?.findings?.length > 0) && (
+            <div className="bg-theme-surface rounded-xl border border-theme-border p-4 space-y-3">
+              <h3 className="text-sm font-mono text-theme-secondary uppercase tracking-wider">
+                Forensic Metadata Findings ({analysis.metadata.analysis.findings.length})
+              </h3>
+              <div className="space-y-2 max-h-52 overflow-y-auto custom-scrollbar">
+                {analysis.metadata.analysis.findings.map((f: any, idx: number) => (
+                  <div key={idx} className="bg-theme-input/60 rounded p-2.5 border border-theme-border font-mono text-xs space-y-1">
+                    <div className="flex justify-between items-center text-theme-accent">
+                      <span className="font-bold">{f.field}</span>
+                      <span className="text-[10px] text-theme-secondary">[{f.section}]</span>
+                    </div>
+                    <div className="text-theme-primary break-all">{f.raw_value}</div>
+                    {f.decode_result && (
+                      <div className="text-theme-success font-bold">
+                        ↳ Decoded: {f.decode_result.final_output}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Hashes */}
           <div className="bg-theme-surface rounded-xl border border-theme-border p-4">
