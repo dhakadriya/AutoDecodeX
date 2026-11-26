@@ -10,6 +10,7 @@ from backend.scoring.scorer import (
     calculate_ngram_score,
     vowel_consonant_ratio,
     punctuation_ratio,
+    check_ctf_flag,
 )
 
 
@@ -71,6 +72,15 @@ class TestCTFFlags:
         
         score = score_text("flag{test}")
         assert score > 0.95
+
+    @pytest.mark.parametrize("encrypted_flag", [
+        "synt{erphefvir_zhygvfgrc_haybpxrq}",
+        "uozt{test_atbash}",
+        "gmbh{caesar_shift}",
+        "pqs{rot13_ctf}",
+    ])
+    def test_encrypted_flag_prefix_not_flag(self, encrypted_flag):
+        assert check_ctf_flag(encrypted_flag) is None
 
 
 class TestIsLikelyEncoded:
