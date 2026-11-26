@@ -101,8 +101,8 @@ def search_cases(
         filtered.sort(key=lambda x: len(x.findings), reverse=descending)
     elif sort_by == "filename":
         filtered.sort(key=lambda x: x.original_filename.lower(), reverse=descending)
-    else:  # default to created_at
-        filtered.sort(key=lambda x: str(x.created_at), reverse=descending)
+    else:  # default to created_at_utc
+        filtered.sort(key=lambda x: str(getattr(x, "created_at_utc", "")), reverse=descending)
 
     return filtered[offset : offset + limit]
 
