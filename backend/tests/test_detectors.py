@@ -253,8 +253,30 @@ class TestBrainfuckDetection:
         assert detect_brainfuck("print('hello world')") == 0.0
 
 
+class TestRot13Detection:
+    """Test ROT13 cipher detection."""
+
+    def test_detect_rot13_flag_prefix(self):
+        assert detect_rot13("synt{erphefvir_zhygvfgrc_haybpxrq}") >= 0.9
+
+    def test_detect_rot13_ctf_prefix(self):
+        assert detect_rot13("pqs{flfgrz_grfg}") >= 0.9
+
+    def test_detect_rot13_text_with_spaces(self):
+        assert detect_rot13("uryyb jbeyq gur naq gb bs") >= 0.8
+
+    def test_reject_base64_symbols(self):
+        assert detect_rot13("SGVsbG8=") == 0.0
+
+
 class TestAtbashDetection:
     """Test Atbash cipher detection."""
+
+    def test_detect_atbash_flag_prefix(self):
+        assert detect_atbash("uozt{test_flag}") >= 0.9
+
+    def test_detect_atbash_ctf_prefix(self):
+        assert detect_atbash("xgu{test_challenge}") >= 0.9
 
     def test_detect_atbash_signature(self):
         # "svool dliow" (hello world in atbash)
