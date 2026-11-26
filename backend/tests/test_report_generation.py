@@ -9,7 +9,12 @@ import json
 import pytest
 
 from backend.engine.analysis_orchestrator import run_full_analysis, build_report
-from backend.engine.report_generator import report_to_json, report_to_pdf
+from backend.engine.report_generator import (
+    report_to_json,
+    report_to_pdf,
+    report_to_markdown,
+    report_to_csv_findings,
+)
 from backend.tests.demo_dataset import generate_test_image
 
 
@@ -122,6 +127,7 @@ class TestPDFReport:
         except ImportError:
             pytest.skip("fpdf2 not installed")
 
+
     def test_pdf_and_json_agree_on_sha256(self, simple_case):
         report = build_report(simple_case)
         json_data = json.loads(report_to_json(report))
@@ -131,3 +137,32 @@ class TestPDFReport:
             assert json_data["sha256"][:16] in content
         except ImportError:
             pytest.skip("fpdf2 not installed")
+
+
+class TestMarkdownReport:
+    def test_markdown_generation_structure(self, simple_case):
+        report = build_report(simple_case)
+        md = report_to_markdown(report)
+        assert isinstance(md, str)
+        assert "# AutoDecodeX Forensic Investigation Report" in md
+        assert report.case_id in md
+        assert report.sha256 in md
+        assert "## 1. Evidence Information" in md
+        assert "## 4. Key Forensic Findings" in md
+
+    def test_markdown_with_image_findings(self, image_case):
+        report = build_report(image_case)
+        md = report_to_markdown(report)
+        assert report.original_filename in md
+        assert "Status" in md
+
+
+class TestCSVReport:
+    def test_csv_generation(self, simple_case):
+        report = build_report(simple_case)
+        csv_str = report_to_csv_findings(report)
+        assert isinstance(csv_str, str)
+        assert "Finding ID,Category,Severity,Status" in csv_str
+        lines = csv_str.strip().splitlines()
+        assert len(lines) == len(report.findings) + 1
+
