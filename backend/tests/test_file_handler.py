@@ -237,3 +237,35 @@ def test_convert_gps_to_decimal_empty_or_invalid():
     assert convert_gps_to_decimal({}) == (None, None)
     assert convert_gps_to_decimal({"GPSLatitude": "invalid"}) == (None, None)
 
+
+def test_parse_png_chunks_valid_image():
+    from backend.stego.metadata_analyzer import parse_png_chunks
+    png_bytes = generate_test_image()
+    res = parse_png_chunks(png_bytes)
+    assert res["valid"] is True
+    assert res["chunks_count"] >= 3
+    chunk_types = [c["type"] for c in res["chunks"]]
+    assert "IHDR" in chunk_types
+    assert "IDAT" in chunk_types
+    assert "IEND" in chunk_types
+    assert res["has_trailing_overlay"] is False
+
+
+def test_parse_png_chunks_with_overlay():
+    from backend.stego.metadata_analyzer import parse_png_chunks
+    png_bytes = generate_test_image()
+    overlay = b"SECRET_OVERLAY_PAYLOAD_12345"
+    with_overlay = png_bytes + overlay
+    res = parse_png_chunks(with_overlay)
+    assert res["valid"] is True
+    assert res["has_trailing_overlay"] is True
+    assert res["trailing_overlay_bytes"] == len(overlay)
+
+
+def test_parse_png_chunks_invalid_header():
+    from backend.stego.metadata_analyzer import parse_png_chunks
+    res = parse_png_chunks(b"NOT_A_PNG_FILE_AT_ALL")
+    assert res["valid"] is False
+    assert res["chunks_count"] == 0
+
+
