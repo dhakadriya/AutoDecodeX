@@ -50,3 +50,14 @@ CTF_FLAG_PATTERNS: List[str] = [
     r'sec\{[^}]+\}',
     r'cyber\{[^}]+\}',
 ]
+
+# Known encrypted flag prefixes (e.g. ROT13, Atbash, Caesar shifts of flag/ctf/hack)
+ENCRYPTED_FLAG_PREFIXES: Set[str] = {
+    'synt',  # rot13(flag)
+    'uozt',  # atbash(flag)
+    'gmbh',  # caesar+1(flag)
+    'ekzf',  # caesar-1(flag)
+    'pqs',   # rot13(ctf)
+    'xgu',   # atbash(ctf)
+    'unpx',  # rot13(hack)
+}

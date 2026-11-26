@@ -21,6 +21,7 @@ from .constants import (
     ENGLISH_TRIGRAMS,
     COMMON_WORDS,
     CTF_FLAG_PATTERNS,
+    ENCRYPTED_FLAG_PREFIXES,
 )
 
 # Backward-compatibility alias
@@ -71,6 +72,7 @@ def punctuation_ratio(text: str) -> float:
 def check_ctf_flag(text: str, custom_patterns: Optional[List[str]] = None) -> Optional[str]:
     """
     Checks if the text contains a CTF flag matching standard or custom regex patterns.
+    Filters out false-positive encrypted flag prefixes (such as rot13 'synt{' or atbash 'uozt{').
     Returns the first matching flag string found, or None if no match.
     """
     if not text:
@@ -79,7 +81,11 @@ def check_ctf_flag(text: str, custom_patterns: Optional[List[str]] = None) -> Op
     for pattern in patterns:
         match = re.search(pattern, text, re.IGNORECASE)
         if match:
-            return match.group(0)
+            matched_flag = match.group(0)
+            prefix = matched_flag.split('{', 1)[0].lower()
+            if prefix in ENCRYPTED_FLAG_PREFIXES:
+                continue
+            return matched_flag
     return None
 
 
