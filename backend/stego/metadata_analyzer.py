@@ -356,7 +356,7 @@ def parse_png_chunks(data: bytes) -> dict:
     and detects any trailing overlay bytes appended after the IEND chunk.
     """
     if len(data) < 8 or data[:8] != b'\x89PNG\r\n\x1a\n':
-        return {"valid": False, "chunks": [], "trailing_overlay_bytes": 0, "has_trailing_overlay": False}
+        return {"valid": False, "chunks_count": 0, "chunks": [], "trailing_overlay_bytes": 0, "has_trailing_overlay": False}
 
     import zlib
     chunks = []
