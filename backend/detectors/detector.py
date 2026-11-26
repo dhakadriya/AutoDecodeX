@@ -537,6 +537,31 @@ def detect_sha512(text: str) -> float:
     return 0.0
 
 
+def detect_reverse(text: str) -> float:
+    """
+    Detects reversed text or reversed cipher strings.
+    Recognizes reversed flag structures (e.g. '}...{galf', '}...{tnys')
+    and common reversed English word patterns.
+    """
+    clean = text.strip()
+    if not clean or len(clean) < 4:
+        return 0.0
+
+    lower = clean.lower()
+    # Check for reversed curly bracket flag format
+    if clean.startswith('}') and '{' in clean:
+        if re.search(r'\}[^\{\}]*(?:galf|ftc|tnys|tzou)', lower):
+            return 0.95
+        return 0.90
+
+    # Common reversed English words
+    reversed_words = ['eht ', ' dna ', ' rof ', ' taht ', ' siht ', 'galf{']
+    if any(rw in lower for rw in reversed_words):
+        return 0.85
+
+    return 0.0
+
+
 # Registry: name → detector function
 DETECTORS = {
     'base64': detect_base64,
@@ -553,6 +578,7 @@ DETECTORS = {
     'baconian': detect_baconian,
     'a1z26': detect_a1z26,
     'braille': detect_braille,
+    'reverse': detect_reverse,
     'nato': detect_nato,
     'morse': detect_morse,
     'url': detect_url_encoding,
