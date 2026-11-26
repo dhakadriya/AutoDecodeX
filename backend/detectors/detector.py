@@ -562,6 +562,52 @@ def detect_reverse(text: str) -> float:
     return 0.0
 
 
+def detect_polybius(text: str) -> float:
+    """
+    Detects Polybius square coordinate pairs (digits 1-5).
+    """
+    clean = text.strip()
+    if not clean or len(clean) < 4:
+        return 0.0
+
+    tokens = clean.split()
+    if all(len(t) == 2 and t[0] in '12345' and t[1] in '12345' for t in tokens) and len(tokens) >= 2:
+        return 0.92
+
+    digits_only = re.sub(r'[^0-9]', '', clean)
+    if len(digits_only) >= 6 and len(digits_only) % 2 == 0:
+        if all(c in '12345' for c in digits_only) and len(digits_only) == len(clean.replace(' ', '')):
+            return 0.88
+
+    return 0.0
+
+
+def detect_brainfuck(text: str) -> float:
+    """
+    Detects Brainfuck esoteric programming language code.
+    Valid characters: + - < > [ ] , .
+    """
+    clean = text.strip()
+    if not clean or len(clean) < 6:
+        return 0.0
+
+    bf_chars = set('+-<>[],.')
+    non_ws = clean.replace('\r', '').replace('\n', '').replace(' ', '')
+    if not non_ws:
+        return 0.0
+    char_count = sum(1 for c in non_ws if c in bf_chars)
+    ratio = char_count / len(non_ws)
+
+    has_brackets = '[' in clean and ']' in clean
+    has_ops = any(op in clean for op in ('++', '--', '>>', '<<', '+>', '-<', '>+', '<+'))
+
+    if ratio >= 0.85 and (has_brackets or has_ops):
+        return 0.95
+    if ratio >= 0.70 and has_brackets:
+        return 0.75
+    return 0.0
+
+
 # Registry: name → detector function
 DETECTORS = {
     'base64': detect_base64,
@@ -579,6 +625,8 @@ DETECTORS = {
     'a1z26': detect_a1z26,
     'braille': detect_braille,
     'reverse': detect_reverse,
+    'polybius': detect_polybius,
+    'brainfuck': detect_brainfuck,
     'nato': detect_nato,
     'morse': detect_morse,
     'url': detect_url_encoding,
