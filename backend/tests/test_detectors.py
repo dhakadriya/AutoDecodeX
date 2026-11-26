@@ -6,7 +6,7 @@ Tests detection accuracy and confidence scoring for all supported encodings.
 import pytest
 from backend.detectors.detector import (
     detect_base64, detect_base32, detect_base85, detect_base58, detect_hex, detect_binary, detect_octal,
-    detect_rot13, detect_caesar, detect_atbash, detect_baconian, detect_a1z26, detect_braille, detect_nato, detect_morse, detect_url_encoding,
+    detect_rot13, detect_caesar, detect_atbash, detect_baconian, detect_a1z26, detect_braille, detect_reverse, detect_nato, detect_morse, detect_url_encoding,
     detect_html_entity, detect_unicode_escape,
     detect_uuencoding, detect_zlib, detect_gzip,
     detect_md5, detect_sha1, detect_sha224, detect_sha256,
@@ -200,6 +200,25 @@ class TestNewDetectors:
         # SHA-1 (40 chars)
         assert detect_sha1("aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d") > 0.8
 
+
+
+class TestReverseDetection:
+    """Test reversed text and flag detection."""
+
+    def test_detect_reversed_flag(self):
+        assert detect_reverse("}detpyrcne_si_siht{galf") >= 0.9
+
+    def test_detect_reversed_with_closing_brace_start(self):
+        assert detect_reverse("}ravyrcvc_yyhs_k_rqbprqbghn{tnys") >= 0.9
+
+    def test_detect_reversed_words(self):
+        assert detect_reverse("eht kciuq nworb xof") >= 0.8
+
+    def test_reject_normal_text(self):
+        assert detect_reverse("The quick brown fox") == 0.0
+
+    def test_reject_short_string(self):
+        assert detect_reverse("abc") == 0.0
 
 
 class TestAtbashDetection:
