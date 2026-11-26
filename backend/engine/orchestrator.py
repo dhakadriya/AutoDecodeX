@@ -10,11 +10,11 @@ import hashlib
 
 from backend.detectors.detector import detect_all
 from backend.decoders.decoders import DECODERS, CaesarDecoder, XORDecoder
-from backend.scoring.scorer import score_text
+from backend.scoring.scorer import score_text, check_ctf_flag
 
 MAX_DEPTH = 10
 SCORE_THRESHOLD = 0.60  # Lowered to catch more valid decodings
-TOP_DETECTIONS = 3  # Try top N detected encodings per step
+TOP_DETECTIONS = 5  # Try top N detected encodings per step
 
 
 @dataclass
@@ -107,18 +107,17 @@ def decode(
         if ctf_mode:
             detections = _boost_ctf(detections)
 
+        # Filter applicable decoders before top-N slicing
+        applicable = [
+            d for d in detections
+            if d['type'] not in ('caesar', 'xor', 'md5', 'sha1', 'sha224', 'sha256', 'sha384', 'sha512')
+            and d['type'] in DECODERS
+        ]
+
         # Try top N detections
-        for detection in detections[:TOP_DETECTIONS]:
+        for detection in applicable[:TOP_DETECTIONS]:
             enc_type = detection['type']
             confidence = detection['confidence']
-
-            # Skip brute-force types in main loop
-            if enc_type in ('caesar', 'xor'):
-                continue
-
-            # Skip hash types during decoding (hashes cannot be decoded)
-            if enc_type in ('md5', 'sha1', 'sha224', 'sha256', 'sha384', 'sha512'):
-                continue
 
             decoder = DECODERS.get(enc_type)
             if not decoder:
@@ -144,21 +143,23 @@ def decode(
             new_steps = node.steps + [step]
             new_hashes = node.visited_hashes | {decoded_hash}
 
+            flag_found = _is_flag(decoded)
             result = DecodingResult(
-                success=new_score >= threshold or _is_flag(decoded),
+                success=new_score >= threshold or flag_found,
                 final_output=decoded,
                 steps=new_steps,
                 total_score=new_score,
                 path_description=_build_path_desc(new_steps),
-                is_ctf_flag=_is_flag(decoded),
+                is_ctf_flag=flag_found,
             )
 
             # Update best if this is better
-            if best is None or new_score > best.total_score:
+            if best is None or new_score > best.total_score or (flag_found and not best.is_ctf_flag):
                 best = result
 
-            if result.success:
-                return result  # Early exit
+            # Early exit only on verified CTF flag or near-certain English plaintext
+            if flag_found or new_score >= 0.92:
+                return result
 
             # Continue exploring
             queue.append(_Node(
@@ -169,8 +170,8 @@ def decode(
                 visited_hashes=new_hashes,
             ))
 
-    # If we have a best result and it's readable, return it
-    if best and best.total_score >= threshold:
+    # If we have a best result and it's readable or a flag, return it
+    if best and (best.total_score >= threshold or best.is_ctf_flag):
         return best
 
     # If the best result is not readable, check if the input itself was a hash
@@ -224,8 +225,7 @@ def brute_force_xor(text: str) -> list[dict]:
 
 
 def _is_flag(text: str) -> bool:
-    import re
-    return bool(re.search(r'[a-zA-Z0-9_]{2,10}\{[^}]+\}', text))
+    return bool(check_ctf_flag(text))
 
 
 def _build_path_desc(steps: list[DecodingStep]) -> str:
@@ -236,8 +236,8 @@ def _build_path_desc(steps: list[DecodingStep]) -> str:
 
 
 def _boost_ctf(detections: list[dict]) -> list[dict]:
-    """In CTF mode, boost base64, hex, rot13 confidence."""
-    ctf_priority = {'base64', 'hex', 'rot13', 'base32', 'binary'}
+    """In CTF mode, boost base64, hex, rot13, base32, binary, reverse confidence."""
+    ctf_priority = {'base64', 'hex', 'rot13', 'base32', 'binary', 'reverse'}
     for d in detections:
         if d['type'] in ctf_priority:
             d['confidence'] = min(1.0, d['confidence'] * 1.1)
