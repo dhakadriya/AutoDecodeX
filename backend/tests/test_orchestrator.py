@@ -68,6 +68,24 @@ class TestMultiLayerDecoding:
         assert len(result.steps) == 3
         # Note: "Hi" is too short to score as high-confidence plaintext
 
+    def test_base64_hex_rot13_flag(self):
+        # flag{recursive_multistep_unlocked} -> ROT13 -> Hex -> Base64
+        payload = "NzM3OTZlNzQ3YjY1NzI3MDY4NjU2Njc2Njk3MjVmN2E2ODc5Njc3NjY2Njc3MjYzNWY2ODYxNzk2MjcwNzg3MjcxN2Q="
+        result = decode(payload)
+        assert result.success is True
+        assert result.final_output == "flag{recursive_multistep_unlocked}"
+        assert result.is_ctf_flag is True
+        assert [s.encoding_type for s in result.steps] == ["base64", "hex", "rot13"]
+
+    def test_base64_hex_reverse_rot13_flag(self):
+        # flag{autodecode_x_full_pipeline} -> ROT13 -> Reverse -> Hex -> Base64
+        payload = "N2Q3MjYxNzY3OTcyNjM3NjYzNWY3OTc5Njg3MzVmNmI1ZjcyNzE2MjcwNzI3MTYyNjc2ODZlN2I3NDZlNzk3Mw=="
+        result = decode(payload)
+        assert result.success is True
+        assert result.final_output == "flag{autodecode_x_full_pipeline}"
+        assert result.is_ctf_flag is True
+        assert [s.encoding_type for s in result.steps] == ["base64", "hex", "reverse", "rot13"]
+
 
 class TestLoopDetection:
     """Test infinite loop detection and prevention."""
