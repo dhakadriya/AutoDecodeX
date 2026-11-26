@@ -53,6 +53,140 @@ def _truncate_values(obj):
             _truncate_values(item)
 
 
+# ── Markdown export ────────────────────────────────────────────────────────
+
+def report_to_markdown(report: ForensicReport) -> str:
+    """
+    Serialise the ForensicReport to a structured Markdown document.
+    Suitable for CTF writeups, forensic dossiers, and documentation.
+    """
+    lines = [
+        "# AutoDecodeX Forensic Investigation Report",
+        "",
+        f"**Report ID:** `{report.report_id}`  ",
+        f"**Case ID:** `{report.case_id}`  ",
+        f"**Generated (UTC):** {report.generated_at_utc}  ",
+        f"**Application Version:** AutoDecodeX v{report.app_version} (Engine v{report.engine_version})  ",
+        "",
+        "---",
+        "",
+        "## 1. Evidence Information",
+        "",
+        "| Property | Value |",
+        "| :--- | :--- |",
+        f"| **Original Filename** | `{report.original_filename}` |",
+        f"| **File Size** | {report.file_size_bytes:,} bytes |",
+        f"| **Detected Format** | {report.detected_format or 'Unknown'} |",
+        f"| **SHA-256** | `{report.sha256}` |",
+        f"| **MD5** | `{report.md5}` |",
+        "",
+        "## 2. Scope of Analysis",
+        "",
+        f"{report.scope_statement}",
+        "",
+        "## 3. Methodology",
+        "",
+        f"{report.methodology_summary}",
+        "",
+        f"## 4. Key Forensic Findings ({len(report.findings)})",
+        "",
+    ]
+
+    if not report.findings:
+        lines.append("*No significant findings recorded for this evidence.*")
+    else:
+        for idx, f in enumerate(report.findings, start=1):
+            sev = _severity_label(f.severity)
+            stat = f.status.value if hasattr(f.status, "value") else str(f.status)
+            lines.extend([
+                f"### 4.{idx}. [{sev}] {f.title}",
+                "",
+                f"- **Status:** `{stat}`",
+                f"- **Category:** `{f.category}`",
+                f"- **Confidence:** {int(f.confidence * 100)}%",
+                f"- **Description:** {f.description}",
+                "",
+            ])
+            if f.observed_value:
+                obs = f.observed_value[:_MAX_VALUE_CHARS]
+                lines.extend([
+                    "**Observed Value:**",
+                    "```",
+                    f"{obs}",
+                    "```",
+                    "",
+                ])
+
+    if report.correlations:
+        lines.extend([
+            f"## 5. Artifact Correlations ({len(report.correlations)})",
+            "",
+        ])
+        for c in report.correlations:
+            lines.append(f"- **{c.hypothesis}** ({c.strength}): {c.reasoning}")
+        lines.append("")
+
+    if report.artifacts:
+        lines.extend([
+            f"## 6. Derived Artifacts ({len(report.artifacts)})",
+            "",
+            "| Artifact ID | Filename | Size | SHA-256 | Description |",
+            "| :--- | :--- | :--- | :--- | :--- |",
+        ])
+        for a in report.artifacts:
+            lines.append(f"| `{a.artifact_id[:8]}...` | `{a.filename}` | {a.size_bytes}B | `{a.sha256[:16]}...` | {a.description} |")
+        lines.append("")
+
+    if report.limitations:
+        lines.extend([
+            "## 7. Limitations & Caveats",
+            "",
+        ])
+        for lim in report.limitations:
+            lines.append(f"- {lim}")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+# ── CSV export ─────────────────────────────────────────────────────────────
+
+def report_to_csv_findings(report: ForensicReport) -> str:
+    """
+    Exports report findings as a comma-separated values (CSV) string.
+    Suitable for SIEM ingestion, spreadsheets, and tabular export.
+    """
+    import csv
+    import io
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "Finding ID",
+        "Category",
+        "Severity",
+        "Status",
+        "Confidence",
+        "Title",
+        "Description",
+        "Observed Value Preview"
+    ])
+    for f in report.findings:
+        sev = _severity_label(f.severity)
+        stat = f.status.value if hasattr(f.status, "value") else str(f.status)
+        val = (f.observed_value or "")[:200].replace("\n", " ")
+        writer.writerow([
+            f.finding_id,
+            f.category,
+            sev,
+            stat,
+            f"{int(f.confidence * 100)}%",
+            f.title,
+            f.description,
+            val
+        ])
+    return output.getvalue()
+
+
 # ── PDF export ─────────────────────────────────────────────────────────────
 
 def report_to_pdf(report: ForensicReport) -> bytes:
