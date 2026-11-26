@@ -84,9 +84,9 @@ def report_to_markdown(report: ForensicReport) -> str:
         "",
         f"{report.scope_statement}",
         "",
-        "## 3. Methodology",
+        "## 3. Executive Summary",
         "",
-        f"{report.methodology_summary}",
+        f"{report.final_summary}",
         "",
         f"## 4. Key Forensic Findings ({len(report.findings)})",
         "",
@@ -103,8 +103,9 @@ def report_to_markdown(report: ForensicReport) -> str:
                 "",
                 f"- **Status:** `{stat}`",
                 f"- **Category:** `{f.category}`",
-                f"- **Confidence:** {int(f.confidence * 100)}%",
-                f"- **Description:** {f.description}",
+                f"- **Summary:** {f.summary}",
+                f"- **Method:** `{f.detection_method}`",
+                f"- **Explanation:** {f.explanation}",
                 "",
             ])
             if f.observed_value:
@@ -123,18 +124,20 @@ def report_to_markdown(report: ForensicReport) -> str:
             "",
         ])
         for c in report.correlations:
-            lines.append(f"- **{c.hypothesis}** ({c.strength}): {c.reasoning}")
+            sev_val = c.severity.value if hasattr(c.severity, "value") else str(c.severity)
+            lines.append(f"- **{c.rule_id}** ({sev_val}): {c.match_reason}")
         lines.append("")
 
     if report.artifacts:
         lines.extend([
             f"## 6. Derived Artifacts ({len(report.artifacts)})",
             "",
-            "| Artifact ID | Filename | Size | SHA-256 | Description |",
+            "| Artifact ID | Filename | Size | SHA-256 | Type |",
             "| :--- | :--- | :--- | :--- | :--- |",
         ])
         for a in report.artifacts:
-            lines.append(f"| `{a.artifact_id[:8]}...` | `{a.filename}` | {a.size_bytes}B | `{a.sha256[:16]}...` | {a.description} |")
+            kind_val = a.kind.value if hasattr(a.kind, "value") else str(a.kind)
+            lines.append(f"| `{a.artifact_id[:8]}...` | `{a.filename}` | {a.size_bytes}B | `{a.sha256[:16]}...` | {kind_val} |")
         lines.append("")
 
     if report.limitations:
@@ -165,9 +168,9 @@ def report_to_csv_findings(report: ForensicReport) -> str:
         "Category",
         "Severity",
         "Status",
-        "Confidence",
         "Title",
-        "Description",
+        "Summary",
+        "Detection Method",
         "Observed Value Preview"
     ])
     for f in report.findings:
@@ -179,9 +182,9 @@ def report_to_csv_findings(report: ForensicReport) -> str:
             f.category,
             sev,
             stat,
-            f"{int(f.confidence * 100)}%",
             f.title,
-            f.description,
+            f.summary,
+            f.detection_method,
             val
         ])
     return output.getvalue()
