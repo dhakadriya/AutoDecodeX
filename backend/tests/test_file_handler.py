@@ -198,3 +198,42 @@ def test_api_stego_analyze_wrong_extension():
     )
     assert response.status_code == 400
     assert "Unsupported file extension" in response.json()["detail"]["message"]
+
+
+def test_convert_gps_to_decimal_standard():
+    from backend.stego.metadata_analyzer import convert_gps_to_decimal
+    # 37 deg 46 min 29.76 sec N, 122 deg 25 min 9.84 sec W
+    gps_info = {
+        "GPSLatitude": ((37, 1), (46, 1), (2976, 100)),
+        "GPSLatitudeRef": "N",
+        "GPSLongitude": ((122, 1), (25, 1), (984, 100)),
+        "GPSLongitudeRef": "W",
+    }
+    lat, lon = convert_gps_to_decimal(gps_info)
+    assert lat is not None and lon is not None
+    assert round(lat, 4) == 37.7749
+    assert round(lon, 4) == -122.4194
+
+
+def test_convert_gps_to_decimal_southern_eastern():
+    from backend.stego.metadata_analyzer import convert_gps_to_decimal
+    # Sydney, Australia: 33 deg 51 min 54 sec S, 151 deg 12 min 36 sec E
+    gps_info = {
+        2: ((33, 1), (51, 1), (54, 1)),
+        1: "S",
+        4: ((151, 1), (12, 1), (36, 1)),
+        3: "E",
+    }
+    lat, lon = convert_gps_to_decimal(gps_info)
+    assert lat is not None and lon is not None
+    assert lat < 0  # South is negative
+    assert lon > 0  # East is positive
+    assert round(lat, 2) == -33.87
+    assert round(lon, 2) == 151.21
+
+
+def test_convert_gps_to_decimal_empty_or_invalid():
+    from backend.stego.metadata_analyzer import convert_gps_to_decimal
+    assert convert_gps_to_decimal({}) == (None, None)
+    assert convert_gps_to_decimal({"GPSLatitude": "invalid"}) == (None, None)
+
